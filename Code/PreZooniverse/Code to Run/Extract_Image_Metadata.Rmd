@@ -1,0 +1,73 @@
+---
+title: "Image Pre-processing 1: Assign images to events"
+output: html_notebook
+---
+## Introduction
+This is the R code needed to use the metadata from a folder of images to compare the image time stamps and group images into their respective "events."
+
+An event is a set of pictures taken within a time threshold.  We set our cameras to take up to 3 pictures in a bout, and set them with a 1 minute delay before they can take more pictures, so we can use 1 minute as our threshold.
+
+### Before you begin
+
+In order to run this code, you will need to have the following in place:
+
+* A folder with a set of images (and only images) in it.
+* A csv file made using *exiftool* that has date/time metadata from all of the photos in the folder
+
+
+### Step 1
+Set up the workspace
+```{r, results='hide'}
+rm(list = ls())
+library(tidyverse)
+library(lubridate)
+library(here) #helps keep directory structure clean when using .Rmd files
+source(here("Code", "Functions", "assignEvents.R"))
+output<-here("Output","PreZooniverse","ImagesByEvent") #sets path for file output.
+```
+### Step 2
+First set up the path to the folder containing the images and the folder containing the metadata file.
+
+```{r}
+exif_path<-"/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/exif_metadata/"
+image_path<-"~/Dropbox/Nature Up North/Citizen Science/North Country Wild/code_testing/Processed"
+```
+
+Now create a variable that is the list of image file names. 
+
+```{r}
+files<-list.files(image_path) #creates variable called files as vector of filenames
+```
+### Step 3 
+Now we need to pull in the image metadata.  It was generated and saved as a .csv outside of R using a tool called *exiftool* that is run from the command line. 
+
+```{r}
+exif_file_name<-"exif_test.csv" #put correct name of file here.
+Exif <- read.csv(paste0(exif_path,exif_file_name)) #obviously, put correct file name here
+
+#may throw an error if your connection to the t:drive drops.
+```
+
+### Step 4
+Now assign images to events using assignEvents function (assignEvents.R).  We will need to set the time threshold (default is 1 minute).
+
+```{r}
+Exif<-assignEvents(Exif)
+```
+
+### Step 5
+Now export Exif for use in assigning images to "image numbers" in the zooniverse manifest style.  Use a file naming convention based on the name of the original exif data so that it is clear what set of images this file is for.
+
+Strip off the "exif_" lead to the file name and replace with "images_by_event_"
+```{r}
+exif_file_name<-str_replace(exif_file_name, "exif_", "images_by_event_") #finds "exif_" in file name, replaces it with "images_by_event.
+```
+Now we need to save the file. This should go into the project Output -> PreZooniverse -> ImagesByEvent folder. I set that up by defining `output` in the file setup step at the top of the page.
+
+```{r}
+write.csv(Exif, paste0(output, "/",exif_file_name))
+```
+At the moment all of this code works!
+
+
+  
