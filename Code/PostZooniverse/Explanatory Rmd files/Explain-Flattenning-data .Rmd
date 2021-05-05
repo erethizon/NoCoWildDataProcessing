@@ -1,0 +1,147 @@
+ ---
+title: "Flattening our Zooniverse files"
+output: html_notebook
+---
+##Overview
+Output from classifications on the [Zooniverse](https://zooniverse.com) come encoded in *JSON format*.  While most of the columns are straightforward to interpret, two critical columns are not.  The first is the **annotation column**.  Within it are the species identification and the answers to all of the questions for each event. Likewise, the **subject_data** column contains all of the information from the manifest, such as the forest type, photo batch, camera number, and forest name.  It would be good to be able to pull all of this information. We especially need it if we plan to remove e.g. images taken on malfunctioning cameras or otherwise suspect images.
+ 
+Processing the data requires four steps:
+1. Isolating the data from a single workflow number and workflow version so that all fields are compatible. May have been done using the .Rmd called `Clean-the-data.Rmd`.
+
+2. Parsing the annotations column.
+
+3. Parsing the subject_data column.
+
+4. Merge the annotations & subject_data to a data frame for data analysis via a join command.
+
+Some of these process are accomplished using scripts provided on the zooniverse github page, modifited to fit our data.  Other processes we coded ourselves. Some of that is noted below.
+
+### Turn on packages and bring in the data and r scripts
+We need to load desired packages and also source the zooniverse scripts so that they will run. The tidyjson package may have to be loaded from this [github](https://github.com/sailthru/tidyjson) site. Look [here](https://cran.r-project.org/web/packages/githubinstall/vignettes/githubinstall.html) for some hints as to how to do that.
+
+```{r}
+rm(list = ls())
+library(here)
+library(tidyjson) #may get error; if so, load from github
+library(magrittr) #allows piping beyond tidyverse
+library(jsonlite)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(lubridate)
+
+myFunctions<-list.files(here("Code", "Functions", "In progress")) 
+#points to files that need to be sourced
+
+sapply(here("Code", "Functions", "In progress", myFunctions), source) #sources all of the functions in the Functions/In progress folder.
+```
+
+Now list all the functions in a folder and source them all
+```{r}
+my_path<-"./Functions/" #path to folder full of functions each in a .R file. the "dot" tells R to use the relative path.
+source_files<-list.files(my_path, "*.R") #lists all the files in th folder
+map(paste0(my_path, source_files), source) #now source all of the files
+data_path<-"./Data/"
+```
+
+###Step 1. Isolating the data to a single workflow and version number
+A zooniverse project can have multiple work flows, and each workflow can have multiple versions. Now that we have prepared the workspace,we need to clean the classification data to focus on just the workflow number and version that we want.
+
+####Specify Project
+Give the project a name and id the classifications file
+```{r}
+#path to whatever data file you want - change path accordingly. 
+classifications_file<-paste0(data_path, "north-country-wild-classifications.csv")
+
+
+```
+####Examine data
+```{r}
+jdata <- read.csv("/Users/ebar/Dropbox/R/2020_2021_NoCoWild_analysis/Data/north-country-wild-classifications.csv", stringsAsFactors = F)
+```
+###Step 2. Parse the annotations column
+
+#### Identify task-specific details. 
+(Notes from whoever wrote this originally for Zooniverse: These variable names are important, because I haven't figured out how to define them in the function call; there's some weird referencing. I don't know. The function definitions and scripts could be improved, but things seem to generally work)
+
+#### Limit to appropriate task and workflow
+Use `choose_my_workflow` function 
+
+```{r}
+data<-choose_my_workflow(jdata)#this asks for user input in the console window - need to respond for the function to run.
+```
+#### Examine the data to see how it is structured 
+```{r}
+View_annotations(data, 3) #our function. provide df and number of rows you'd like to see.
+```
+#### Now flatten the file
+We now flatten the Annotations column by calling the code from the flatten_json function. 
+```{r}
+flat_file<-flatten_json(data) #this is slow; could we write faster code?  A problem for another day.
+```
+This result may give more rows than are in the original (*jdata*) data file.  If so, it is because the same subject was classified as two different species.  There will be more than one total submission for the particular classification id's. This will be important for joining the annotation data with the subject data below.
+
+Get rid of unneeded columns that have `filters.*` in the name
+
+```{r}
+flat_file<-flat_file %>% select(! starts_with("filters.")) 
+```
+###Step 3. Parse the subjects column
+#### Examine subject_data details.
+Examine one of the JSON subject_data entries using "prettify"
+
+```{r}
+View_subject_data(data, 3) #our function; give df and # of rows you'd like displayed
+```
+R returns the n elements from the subject_data column.  
+
+####Parse subject data
+Note that for each row of data, the first part of the subject_data json is the number that corresponds to the subject id.  Because each subject id is unique, if you try to parse these data as is, you will get a new column for every single subject, which is insane.  To solve this problem, we're going to replace the subject_id in the subject_data column with uniform text.
+
+```{r}
+subj_id_string<-as.character(data$subject_ids)#makes a variable consisting of the strings to recognize.  
+data$new_sub_data<-data$subject_data %>% str_replace(subj_id_string, "subject") #replace the strings with the word "subject"
+```
+Now we can parse the data.
+
+```{r}
+subjects<-data %>%
+  select(., subject_ids, user_name, classification_id,workflow_id,
+         workflow_version, subject_ids, new_sub_data) %>%
+  as.tbl_json(json.column = "new_sub_data") %>%
+  spread_values(
+    id = jstring(subject,retired,id),
+    class.count = jnumber(subject, retired, classifications_count),
+    round = jstring("subject", "#round"),
+    Imj1 = jstring(subject, image1),
+    Imj2 = jstring(subject,image2),
+    Img3 = jstring(subject, image3),
+    CamNum = jstring("subject", "#cam_num"),
+    SD_card_num = jstring("subject", "#sd_card"),
+    Event = jstring("subject", "event_num")
+    
+  )
+
+```
+Get rid of some extraneous columns to reduce the number of columns in the merged file.  We'll use "classification_id" as the merge column, so DO NOT get rid of it!
+
+```{r}
+subjects<-select(subjects, !c(subject_ids, user_name, workflow_version)) #get rid of subject_ids, user_name
+
+```
+
+###Step 4. Merge the annotations and subjects data
+Now that we have flattened both the annotations and subject_data columns, we would like to generate one large data frame with all of the data to export and analyze (using different R scripts!).  To do so, we need to join the two data frames.  Joining will **only work** if you have a column, named identically in both data frames, on which the join will work.
+
+The join itself is pretty easy:
+```{r}
+Flattened<-left_join(flat_file, subjects, by='classification_id')
+```
+
+Now Save our result!
+```{r}
+Filename<-paste0("NoCoWild-",Sys.Date())
+write.csv(Flattened, paste0(Filename,"-flattened.csv"), row.names = F)
+```
+
+Works!
