@@ -22,8 +22,14 @@ rm(list = ls())
 library(tidyverse)
 library(lubridate)
 library(here) #helps keep directory structure clean when using .Rmd files
-source.all(here("Code", "Functions"))#sources all functions in this folder
+myFunctions<-list.files(here("Code", "Functions")) 
+#points to files that need to be sourced
+
+sapply(here("Code", "Functions", myFunctions), source) #sources all of the functions in the Functions folder.
+
 output<-here("Output","PreZooniverse","ImagesByEvent") #sets path for file output.
+
+tweak
 ```
 ### Step 2
 First set up the path to the folder containing the images and the folder containing the metadata file.
