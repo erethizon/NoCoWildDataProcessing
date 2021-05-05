@@ -5,8 +5,6 @@
 choose_my_class_file<-function(classification_file_path){
   #list classification files
   class_files<-list.files(classification_file_path)
-  #turn on dplyr
-  require(dplyr)
 
   #now ask user which file to use
   my_selection<- menu(class_files,
@@ -16,4 +14,5 @@ choose_my_class_file<-function(classification_file_path){
 
   #now read in the selected file
   jdata<-read.csv(paste0(classification_file_path,"/",my_selection ),stringsAsFactors = F)
+  return(jdata)
 }

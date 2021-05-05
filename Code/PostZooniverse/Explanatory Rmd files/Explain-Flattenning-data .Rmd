@@ -48,7 +48,7 @@ A zooniverse project can have multiple work flows, and each workflow can have mu
 Give the project a name and id the classifications file
 ```{r}
 #path to storage location for classification files 
-class_file_path<-"/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/classification_files"
+class_file_path<-here("Data", "PostZooniverse", "ClassificationFiles")
 ```
 ####Examine data
 ```{r}
