@@ -3,7 +3,7 @@ title: "Image processing: Assign images to events and create manifest"
 output: html_notebook
 ---
 ## Introduction
-In order to review the images from our game camera exploits, we need to batch load the images and their associated manifest file to the **[Zooniverse](http://www.zooniverse.org)**. Our game cameras are set to take pictures in bursts of 3 shots (3 shots = 1 event) - to help ensure identification of the animal.  Thus, the 3 images should not be treated independently, but really as a single observation or *event*.  
+In order to review the images from our game camera exploits, we need to batch load the images and their associated manifest file to the **[Zooniverse](http://www.zooniverse.org)**. Our game cameras are set to take pictures in bursts of 3 shots (3 shots = 1 event) - to help ensure identification of the animal.  Thus, the 3 images should not be treated independently, but really as a single observation or **event**.  
 
 There are two key steps in preparing the data for upload to the zooniverse:
 
@@ -33,7 +33,6 @@ In order to run this code, you will need to have the following in place:
 
 ## Set up the workspace for running the project.
 
-Set up the workspace
 ```{r, results='hide'}
 rm(list = ls())
 library(tidyverse)
@@ -103,5 +102,6 @@ manifest_file_name<-str_replace(myFile, "images_by_event_", "manifest_") #finds 
 write.csv(Manifest,  paste0(output, "/",manifest_file_name,"_",Sys.Date(), ".csv"))
 ```
 
+## You did it! Nice job!
 
   
