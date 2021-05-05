@@ -30,18 +30,15 @@ library(stringr)
 library(tidyr)
 library(lubridate)
 
-myFunctions<-list.files(here("Code", "Functions", "In progress")) 
+myFunctions<-list.files(here("Code", "Functions"), pattern = "R") 
 #points to files that need to be sourced
 
-sapply(here("Code", "Functions", "In progress", myFunctions), source) #sources all of the functions in the Functions/In progress folder.
-```
+sapply(here("Code", "Functions", myFunctions), source) #sources all of the functions in the Functions folder.
 
-Now list all the functions in a folder and source them all
-```{r}
-my_path<-"./Functions/" #path to folder full of functions each in a .R file. the "dot" tells R to use the relative path.
-source_files<-list.files(my_path, "*.R") #lists all the files in th folder
-map(paste0(my_path, source_files), source) #now source all of the files
-data_path<-"./Data/"
+otherFunctions<-list.files(here("Code", "Functions", "In progress"), pattern = "R")
+#points to other functions to source that may need modification
+
+sapply(here("Code", "Functions", "In progress", otherFunctions), source)
 ```
 
 ###Step 1. Isolating the data to a single workflow and version number
@@ -50,10 +47,8 @@ A zooniverse project can have multiple work flows, and each workflow can have mu
 ####Specify Project
 Give the project a name and id the classifications file
 ```{r}
-#path to whatever data file you want - change path accordingly. 
-classifications_file<-paste0(data_path, "north-country-wild-classifications.csv")
-
-
+#path to storage location for classification files 
+class_file_path<-"/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/classification_files"
 ```
 ####Examine data
 ```{r}
