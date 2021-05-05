@@ -1,21 +1,38 @@
 ---
-title: "Image Pre-processing 1: Assign images to events"
+title: "Image processing: Assign images to events and create manifest"
 output: html_notebook
 ---
 ## Introduction
-This is the R code needed to use the metadata from a folder of images to compare the image time stamps and group images into their respective "events."
+In order to review the images from our game camera exploits, we need to batch load the images and their associated manifest file to the **[Zooniverse](http://www.zooniverse.org)**. Our game cameras are set to take pictures in bursts of 3 shots (3 shots = 1 event) - to help ensure identification of the animal.  Thus, the 3 images should not be treated independently, but really as a single observation or *event*.  
 
-An event is a set of pictures taken within a time threshold.  We set our cameras to take up to 3 pictures in a bout, and set them with a 1 minute delay before they can take more pictures, so we can use 1 minute as our threshold.
+There are two key steps in preparing the data for upload to the zooniverse:
 
-### Before you begin
+ 1. Assign each image name to the appropriate event.
+ 
+  - use the metadata from a folder of images to compare the image time stamps and group images into their respective "events."
+  
+  - read the time stamp associated with each image and use it to determine how long after the previous image each image was taken (i.e. determine the time interval between images)
+  
+  - compare the time intervals to a threshold. An event is a set of pictures taken within a time threshold.  We set our cameras to take up to 3 pictures in a bout, and set them with a 1 minute delay before they can take more pictures, so we can use 1 minute as our threshold.
+  
+  - We use our custom function `assignEvents()` to complete step 1.
+  
+2. Use the event information generated in step 1 to create the manifest for Zooniverse.
+  - The zooniverse manifest structure requires that the second, third and 4th columns include the file names for the first, second and third images of the set, respectively. (The first column is for a row number).
+  
+  - take the output produced from our `assignEvents()` function and create a second data frame that assigns each image to the proper column of the proper event. This data frame can then be modified further in R or directly exported as a .csv to the Output -> PreZooniverse -> Manifests folder for further modification in Excel or direct upload to the Zooniverse.
+  - We use our custom function `makeManifest()` to complete step 2.
+
+## Before you begin
 
 In order to run this code, you will need to have the following in place:
 
-* A folder with a set of images (and only images) in it.
-* A csv file made using *exiftool* that has date/time metadata from all of the photos in the folder
+* A folder with a set of images (and only images) in it (typically located on the hard drive attached to the iMac in JHS 115 - you may wish to run this project from that machine).
+* A csv file made using *exiftool* that has date/time metadata from all of the photos in the folder (located in the NoCoWild -> Data -> exif_metadata folder on the t:drive)
 
 
-### Step 1
+## Set up the workspace for running the project.
+
 Set up the workspace
 ```{r, results='hide'}
 rm(list = ls())
@@ -26,25 +43,20 @@ myFunctions<-list.files(here("Code", "Functions"))
 #points to files that need to be sourced
 
 sapply(here("Code", "Functions", myFunctions), source) #sources all of the functions in the Functions folder.
-
-output<-here("Output","PreZooniverse","ImagesByEvent") #sets path for file output.
-
 ```
-### Step 2
-First set up the path to the folder containing the images and the folder containing the metadata file.
+Set up the path to the folder containing the images and the folder containing the metadata file.
 
 ```{r}
 exif_path<-"/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/exif_metadata/"
 image_path<-"~/Dropbox/Nature Up North/Citizen Science/North Country Wild/code_testing/Processed"
 ```
-
-Now create a variable that is the list of image file names. 
+Create a variable that is the list of image file names. 
 
 ```{r}
 files<-list.files(image_path) #creates variable called files as vector of filenames
 ```
-### Step 3 
-Now we need to pull in the image metadata.  It was generated and saved as a .csv outside of R using a tool called *exiftool* that is run from the command line. 
+#### Pull in the data
+Pull in the image metadata.  It was generated and saved as a .csv outside of R using a tool called *exiftool* that is run from the command line. 
 
 ```{r}
 exif_file_name<-"exif_2021_R1_C024_SD100_uneven.csv" #put correct name of file here.
@@ -53,26 +65,43 @@ Exif <- read.csv(paste0(exif_path,exif_file_name)) #obviously, put correct file 
 #may throw an error if your connection to the t:drive drops.
 ```
 
-### Step 4
-Now assign images to events using assignEvents function (assignEvents.R).  We will need to set the time threshold (default is 1 minute).
+## Step 1 - Assign images to events
+Now assign images to events using assignEvents function (assignEvents.R).  We will need to set the time threshold (default is 1 minute).If you want a different threshold, pass it (an integer of number of seconds) to the assignEvents as the second argument
 
 ```{r}
-Exif<-assignEvents(Exif)
+Exif<-assignEvents(Exif) #no threshold passed, using default of 60 seconds
 ```
 
-### Step 5
-Now export Exif for use in assigning images to "image numbers" in the zooniverse manifest style.  Use a file naming convention based on the name of the original exif data so that it is clear what set of images this file is for.
+#### Save the output of Step 1 in case you need it later for something.
+Now export Exif for use in assigning images to "image numbers" in the zooniverse manifest style.We use a file naming convention based on the name of the original exif data so that it is clear what set of images this file is for.
 
 Strip off the "exif_" lead to the file name and replace with "images_by_event_"
 ```{r}
 exif_file_name<-str_replace(exif_file_name, "exif_", "images_by_event_") #finds "exif_" in file name, replaces it with "images_by_event.
 ```
-Now we need to save the file. This should go into the project Output -> PreZooniverse -> ImagesByEvent folder. I set that up by defining `output` in the file setup step at the top of the page.
+Now we need to save the file. This should go into the project Output -> PreZooniverse -> ImagesByEvent folder. I set that up by defining `output` in the first line of code in the following code chunk:
 
 ```{r}
+output<-here("Output","PreZooniverse","ImagesByEvent") #sets path for file output.
 write.csv(Exif, paste0(output, "/",exif_file_name))
 ```
-At the moment all of this code works!
+This completes Step 1.
+
+## Step 2 - Create the manifest
+Use the end product of step 1 as the input file for the `makeManifest()` function.
+
+```{r}
+Manifest<-makeManifest(Exif)
+```
+
+#### Save the output of Step 2 
+Manifest is our desired output, and it gets saved in Output -> PreZooniverse -> Manifests. We want it to use parts of the original file name to track the set of images it contains. 
+```{r}
+output<-here("Output", "PreZooniverse", "Manifests") #determines where to write output data file.
+myFile<-str_remove(exif_file_name, ".csv") #drop the .csv temporarily
+manifest_file_name<-str_replace(myFile, "images_by_event_", "manifest_") #finds "images_by_event_" in file name, replaces it with "manifest_.
+write.csv(Manifest,  paste0(output, "/",manifest_file_name,"_",Sys.Date(), ".csv"))
+```
 
 
   
