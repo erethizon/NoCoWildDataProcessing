@@ -7,7 +7,7 @@ In order to review the images from our game camera exploits, we need to batch lo
 
 The zooniverse manifest structure requires that the second, third and 4th columns include the file names for the first, second and third images of the set, respectively. (The first column is for a row number).Thus, to simplify our lives, we need some scripts that will take the output produced from our `assignEvents()` function and create a second data frame that assigns each image to the proper column of the proper event. This data frame can then be modified further in R or directly exported as a .csv to the Output -> PreZooniverse -> Manifests folder.
 
-###Before you begin
+### Before you begin
 This code will import the images_by_event .csv that was produced by the`assignEvents()` function.
 
 ### Step 1. Set up the workspace and read in data.
@@ -25,7 +25,7 @@ inputs<-here("Output", "PreZooniverse", "ImagesByEvent", myFile)
 DF<-read.csv(inputs)
 ```
 ### Step 2. Assign images to proper columns
-####Part A 
+#### Part A 
 Begin by creating an empty data frame to receive the data
 ```{r}
 Runs<-unique(DF$Event) #determines the number of events in the DF
@@ -41,7 +41,7 @@ Manifest<-data.frame(Num = integer(length(Runs)),
                      stringsAsFactors = FALSE)
 ```
 
-####Part B 
+#### Part B 
 Loop through DF, read the event number, and assign image names to the proper columns of Manifest
 
 ```{r}
@@ -104,7 +104,7 @@ Manifest$CamSD<- paste0(Manifest$CamNum, "_", Manifest$SD_Num)
 ```
 Now I have the complete manifest file!
 
-###Step 3
+### Step 3
 Save the resulting manifest
 
 Strip off the "images_by_event_" lead to the file name and replace with "manifest_"
