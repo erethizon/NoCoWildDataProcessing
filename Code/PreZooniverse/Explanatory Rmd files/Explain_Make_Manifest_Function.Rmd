@@ -12,7 +12,7 @@ This code will import the images_by_event .csv that was produced by the`assignEv
 
 ### Step 1. Set up the workspace and read in data.
 Set up the workspace
-```{r}
+```{r,results='hide'}
 rm(list = ls())#clears the workspace
 library(tidyverse) 
 library(here)
@@ -20,7 +20,7 @@ output<-here("Output", "PreZooniverse", "Manifests") #determines where to write 
 ```
 Now read in the data.  
 ```{r}
-myFile<-"images_by_event_test.csv" #name of the images_by_event file you wish to use
+myFile<-"images_by_event_2021_R1_C024_SD100_uneven.csv" #name of the images_by_event file you wish to use
 inputs<-here("Output", "PreZooniverse", "ImagesByEvent", myFile)
 DF<-read.csv(inputs)
 ```
@@ -34,7 +34,10 @@ Manifest<-data.frame(Num = integer(length(Runs)),
                      Image2 = character(length(Runs)),
                      Image3 = character(length(Runs)), 
                      DateTimeOriginal_Img1 = .POSIXct(character(length(Runs))),
-                     #CamNum = integer(length(Runs)),#consider adding a way to record a column with camera number for manifest
+                     CamSD = character(length(Runs)),
+                     CamNum = character(length(Runs)),
+                     SD_Num = character(length(Runs)),
+                     Event = integer(length(Runs)),
                      stringsAsFactors = FALSE)
 ```
 
@@ -46,8 +49,10 @@ Loop through DF, read the event number, and assign image names to the proper col
 #i = 1
 for (i in 1: length(Runs)) {
        Group <-filter(DF, Event == Runs[i])
+      
        Group<-Group[order(Group$DateTimeOriginal),]
         Fill_num<-length(Group$Event)
+       
         
         z<-1
           if (Fill_num == 3){
@@ -56,20 +61,61 @@ for (i in 1: length(Runs)) {
             Manifest$Image3[i]<-Group$FileName[z+2]
             }
           else {
-               Manifest$DateTimeOriginalImg1<-Group$DateTimeOriginal[z]
+               Manifest$DateTimeOriginal_Img1<-Group$DateTimeOriginal[z]
                Manifest$Image1[i]<-Group$FileName[z]
                Manifest$Image2[i]<-Group$FileName[z+1]
                Manifest$Image3[i]<-"NA"
-               }
+          }
+       
 }
 
 Manifest[,1]<-c(1:length(Runs))
   
 
 ```
+Now see if I can populate the DateTimeOriginal_Img1 and Event columns of manifest using information from the first image in each event.
+
+```{r}
+myImages<-Manifest$Image1
+mySubset<-filter(DF, FileName %in% myImages)
+Manifest$DateTimeOriginal_Img1<-mySubset$DateTimeOriginal
+Manifest$Event<-mySubset$Event
+
+```
+And now see if I can use pattern matching in strings to extract CamSD, CamNum, SD_Num
+
+Begin by splitting the strings based on the "_" character
+```{r}
+myStrings<-str_split(mySubset$FileName, "_")
+```
+This generated a list with 5 elements. Each of the 5 elements has 4 subelements, the string pieces.
+
+The first string piece identifies the camera number and the second the SD card. So I need to extract those subelements to put into the manifest.
+
+Let's try it
+
+```{r}
+Manifest$CamNum<-sapply(myStrings, "[[", 1)
+Manifest$SD_Num<-sapply(myStrings, "[[", 2)
+```
+And now paste them together to give the CamSD column
+```{r}
+Manifest$CamSD<- paste0(Manifest$CamNum, "_", Manifest$SD_Num)
+```
+Now I have the complete manifest file!
+
 ###Step 3
 Save the resulting manifest
+
+Strip off the "images_by_event_" lead to the file name and replace with "manifest_"
 ```{r}
-write.csv(Manifest, file = paste0("/Users/ebar/Dropbox/R/Zooniverse_work/Round1/R1B1manifest_",Sys.Date(), ".csv"))
+myFile<-str_remove(myFile, ".csv")
+manifest_file_name<-str_replace(myFile, "images_by_event_", "manifest_") #finds "exif_" in file name, replaces it with "images_by_event.
 ```
 
+```{r}
+write.csv(Manifest,  paste0(output, "/",manifest_file_name,"_",Sys.Date(), ".csv"))
+```
+And it worked!
+
+Next compress all of this into a function called makeManifest and edit the PreZooniversePrep.Rmd to call that function.

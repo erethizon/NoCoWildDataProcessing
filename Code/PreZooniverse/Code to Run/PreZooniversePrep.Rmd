@@ -29,7 +29,6 @@ sapply(here("Code", "Functions", myFunctions), source) #sources all of the funct
 
 output<-here("Output","PreZooniverse","ImagesByEvent") #sets path for file output.
 
-tweak
 ```
 ### Step 2
 First set up the path to the folder containing the images and the folder containing the metadata file.
@@ -48,7 +47,7 @@ files<-list.files(image_path) #creates variable called files as vector of filena
 Now we need to pull in the image metadata.  It was generated and saved as a .csv outside of R using a tool called *exiftool* that is run from the command line. 
 
 ```{r}
-exif_file_name<-"exif_test.csv" #put correct name of file here.
+exif_file_name<-"exif_2021_R1_C024_SD100_uneven.csv" #put correct name of file here.
 Exif <- read.csv(paste0(exif_path,exif_file_name)) #obviously, put correct file name here
 
 #may throw an error if your connection to the t:drive drops.
