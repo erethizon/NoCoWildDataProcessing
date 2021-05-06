@@ -1,4 +1,6 @@
-#flatten_json function
+#flatten_json function; written by a Zooniverse user and modified by ELB
+
+#Takes a data frame with json_data in it and flattens the json column
 #now flatten data to relevant tasks within a classification
 flatten_json<-function(json_data){
   flat_to_task<-json_data %>%

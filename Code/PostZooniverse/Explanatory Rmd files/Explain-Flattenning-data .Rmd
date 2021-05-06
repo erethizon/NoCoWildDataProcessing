@@ -19,9 +19,10 @@ Some of these process are accomplished using scripts provided on the zooniverse 
 ### Turn on packages and bring in the data and r scripts
 We need to load desired packages and also source the zooniverse scripts so that they will run. The tidyjson package may have to be loaded from this [github](https://github.com/sailthru/tidyjson) site. Look [here](https://cran.r-project.org/web/packages/githubinstall/vignettes/githubinstall.html) for some hints as to how to do that.
 
-```{r}
+```{r, results='hide'}
 rm(list = ls())
 library(here)
+library(tidyverse)
 library(tidyjson) #may get error; if so, load from github
 library(magrittr) #allows piping beyond tidyverse
 library(jsonlite)
@@ -49,10 +50,7 @@ Give the project a name and id the classifications file
 ```{r}
 #path to storage location for classification files 
 class_file_path<-here("Data", "PostZooniverse", "ClassificationFiles")
-```
-####Examine data
-```{r}
-jdata <- read.csv("/Users/ebar/Dropbox/R/2020_2021_NoCoWild_analysis/Data/north-country-wild-classifications.csv", stringsAsFactors = F)
+jdata<-choose_my_class_file(class_file_path)
 ```
 ###Step 2. Parse the annotations column
 
@@ -65,10 +63,27 @@ Use `choose_my_workflow` function
 ```{r}
 data<-choose_my_workflow(jdata)#this asks for user input in the console window - need to respond for the function to run.
 ```
-#### Examine the data to see how it is structured 
+#### Examine the data to see how they are structured
+```{r}
+library(tidyverse)
+summary(data)
+data_summary<-my_example %>% group_by(subject_ids) %>% summarise(
+  NumClassifications = length(unique(classification_id))
+) 
+
+ggplot(data_summary, aes(NumClassifications))+
+  geom_histogram()
+```
+```{r}
+ggplot(data_summary, aes(NumClassifications))+
+  geom_histogram()
+```
+
+
 ```{r}
 View_annotations(data, 3) #our function. provide df and number of rows you'd like to see.
 ```
+
 #### Now flatten the file
 We now flatten the Annotations column by calling the code from the flatten_json function. 
 ```{r}
@@ -76,6 +91,7 @@ flat_file<-flatten_json(data) #this is slow; could we write faster code?  A prob
 ```
 This result may give more rows than are in the original (*jdata*) data file.  If so, it is because the same subject was classified as two different species.  There will be more than one total submission for the particular classification id's. This will be important for joining the annotation data with the subject data below.
 
+Why when I run this is flat_file showing 419 fewer rows than data?
 Get rid of unneeded columns that have `filters.*` in the name
 
 ```{r}
