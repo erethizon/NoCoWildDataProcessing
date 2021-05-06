@@ -2,7 +2,7 @@
 
 #Takes a data frame with json_data in it and flattens the json column
 #now flatten data to relevant tasks within a classification
-flatten_json<-function(json_data){
+flatten_annotations<-function(json_data){
   flat_to_task<-json_data %>%
     select(., classification_id, user_name, subject_ids,   workflow_version, annotations) %>%
     as.tbl_json(json.column = "annotations") %>%

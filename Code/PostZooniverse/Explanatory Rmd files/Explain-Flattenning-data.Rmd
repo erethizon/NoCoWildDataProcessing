@@ -25,7 +25,7 @@ library(here)
 library(tidyverse)
 library(tidyjson) #may get error; if so, load from github
 library(magrittr) #allows piping beyond tidyverse
-library(jsonlite)
+#library(jsonlite)
 library(dplyr)
 library(stringr)
 library(tidyr)
@@ -50,7 +50,11 @@ Give the project a name and id the classifications file
 ```{r}
 #path to storage location for classification files 
 class_file_path<-here("Data", "PostZooniverse", "ClassificationFiles")
-jdata<-choose_my_class_file(class_file_path)
+jdata_and_file_name<-choose_my_class_file(class_file_path)
+#result is a list; first element is the file name, second is the dataframe. Split this into two items so that I have both for future use.
+
+jdata<-as.data.frame(jdata_and_file_name[2])
+filename<-jdata_and_file_name[[1]]
 ```
 ###Step 2. Parse the annotations column
 
@@ -62,24 +66,17 @@ Use `choose_my_workflow` function
 
 ```{r}
 data<-choose_my_workflow(jdata)#this asks for user input in the console window - need to respond for the function to run.
+rm(jdata, jdata_and_file_name)
 ```
 #### Examine the data to see how they are structured
 ```{r}
-library(tidyverse)
-summary(data)
-data_summary<-my_example %>% group_by(subject_ids) %>% summarise(
+data_summary<-data %>% group_by(subject_ids) %>% summarise(
   NumClassifications = length(unique(classification_id))
 ) 
 
 ggplot(data_summary, aes(NumClassifications))+
   geom_histogram()
 ```
-```{r}
-ggplot(data_summary, aes(NumClassifications))+
-  geom_histogram()
-```
-
-
 ```{r}
 View_annotations(data, 3) #our function. provide df and number of rows you'd like to see.
 ```
@@ -91,8 +88,10 @@ flat_file<-flatten_json(data) #this is slow; could we write faster code?  A prob
 ```
 This result may give more rows than are in the original (*jdata*) data file.  If so, it is because the same subject was classified as two different species.  There will be more than one total submission for the particular classification id's. This will be important for joining the annotation data with the subject data below.
 
-Why when I run this is flat_file showing 419 fewer rows than data?
+It also may give fewer rows than are in the original(*jdata*) data file. If so, it is because there are some subject ids and classification ids for which the user never answered the questions - they get dropped when the annotation column is parsed.
+
 Get rid of unneeded columns that have `filters.*` in the name
+
 
 ```{r}
 flat_file<-flat_file %>% select(! starts_with("filters.")) 
@@ -114,7 +113,7 @@ subj_id_string<-as.character(data$subject_ids)#makes a variable consisting of th
 data$new_sub_data<-data$subject_data %>% str_replace(subj_id_string, "subject") #replace the strings with the word "subject"
 ```
 Now we can parse the data.
-
+This parsing code may have to be updated to match any changes in the subject data.
 ```{r}
 subjects<-data %>%
   select(., subject_ids, user_name, classification_id,workflow_id,
@@ -149,10 +148,14 @@ The join itself is pretty easy:
 Flattened<-left_join(flat_file, subjects, by='classification_id')
 ```
 
-Now Save our result!
+Now Save our result! This will go in the flattened folder within the PostZooniverse outputs.
 ```{r}
-Filename<-paste0("NoCoWild-",Sys.Date())
-write.csv(Flattened, paste0(Filename,"-flattened.csv"), row.names = F)
+output<-here("Output", "PostZooniverse", "Flattened")
+
+myFile<-str_remove(filename, ".csv") #drop the .csv temporarily
+
+write.csv(Flattened,  paste0(output, "/",myFile,"_","flat_", Sys.Date(), ".csv"))
+
 ```
 
 Works!

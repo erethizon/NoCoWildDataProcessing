@@ -14,5 +14,6 @@ choose_my_class_file<-function(classification_file_path){
 
   #now read in the selected file
   jdata<-read.csv(paste0(classification_file_path,"/",my_selection ),stringsAsFactors = F)
-  return(jdata)
+  out<-list(my_selection, jdata)
+  return(out)
 }

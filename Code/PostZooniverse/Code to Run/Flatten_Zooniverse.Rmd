@@ -1,0 +1,96 @@
+ ---
+title: "Flattening our Zooniverse files"
+output: html_notebook
+---
+##Overview
+Output from classifications on the [Zooniverse](https://zooniverse.com) come encoded in *JSON format*.  While most of the columns are straightforward to interpret, two critical columns are not.  The first is the **annotation column**.  Within it are the species identification and the answers to all of the questions for each event. Likewise, the **subject_data** column contains all of the information from the manifest, such as the forest type, photo batch, camera number, and forest name.  It would be good to be able to pull all of this information. We especially need it if we plan to remove e.g. images taken on malfunctioning cameras or otherwise suspect images.
+ 
+Processing the data requires six steps:
+1. Selecting the correct classification file from among many. We peridically download classification files from the Zooniverse, and keep them all in the same folder. We use the `choose_my_class-file` function to allow the user to input the classification file that they would like to process.
+
+2. Isolating the data from a single workflow number and workflow version so that all fields are compatible. We use the custom  `choose_my_workflow` function to allow the user to select the workflow number and version and return a dataset that has been reduced to that single workflow version.
+
+3. Parsing the annotations column.
+
+4. Parsing the subject_data column.
+
+5. Merge the annotations & subject_data to a data frame for data analysis via a join command.
+
+6. Write the output to a folder called "Flattened" in the PostZooniverse Output folder.
+
+
+### Turn on packages and bring in the data and r scripts
+We need to load desired packages and also source custom functions  so that they will run. The tidyjson package may have to be loaded from this [github](https://github.com/sailthru/tidyjson) site. Look [here](https://cran.r-project.org/web/packages/githubinstall/vignettes/githubinstall.html) for some hints as to how to do that.
+
+```{r, results='hide'}
+rm(list = ls())
+library(here)
+library(tidyverse)
+library(tidyjson) #may get error; if so, load from github
+library(magrittr) #allows piping beyond tidyverse
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(lubridate)
+
+myFunctions<-list.files(here("Code", "Functions"), pattern = "R") 
+#points to files that need to be sourced
+
+sapply(here("Code", "Functions", myFunctions), source) #sources all of the functions in the Functions folder.
+
+class_file_path<-here("Data", "PostZooniverse", "ClassificationFiles")#sets path to find classification files
+```
+
+###Step 1. Choose the classification file to work with.
+We have multiple classification files. This code asks the user for input so that they can select the classification file to work with. If the classification file is NOT in the folder NoCoWildDataProcessing -> Data -> PostZooniverse -> ClassificationFiles it cannot be processed.
+
+```{r}
+jdata_and_file_name<-choose_my_class_file(class_file_path)
+#result is a list; first element is the file name, second is the dataframe. Split this into two items so that I have both for future use.
+
+jdata<-as.data.frame(jdata_and_file_name[2])
+filename<-jdata_and_file_name[[1]]
+rm(jdata_and_file_name)#removes the list object to save computer memory
+```
+###Step 2. Limit to appropriate task and workflow
+Isolating the data to a single workflow and version number
+A zooniverse project can have multiple work flows, and each workflow can have multiple versions. Now that we have prepared the workspace,we need to clean the classification data to focus on just the workflow number and version that we want.
+Uses `choose_my_workflow` function and requires user input in the console.
+
+```{r}
+data<-choose_my_workflow(jdata)#this asks for user input in the console window - need to respond for the function to run.
+rm(jdata) #removes no longer needed object to save space.
+```
+### Step 3. Parse the annotations column
+We now flatten the Annotations column by calling the  `flatten_annotations` function. 
+
+```{r}
+flat_file<-flatten_annotations(data) #this is slow; could we write faster code?  A problem for another day.
+```
+
+### Step 4. Parse the subjects column
+
+Now we can parse the data.
+
+```{r}
+subjects<-flatten_subjects(data)
+```
+
+###Step 4. Merge the annotations and subjects data
+Now that we have flattened both the annotations and subject_data columns, we would like to generate one large data frame with all of the data to export and analyze (using different R scripts!).  To do so, we need to join the two data frames.  Joining will **only work** if you have a column, named identically in both data frames, on which the join will work.
+
+The join itself is pretty easy:
+```{r}
+Flattened<-left_join(flat_file, subjects, by='classification_id')
+```
+
+Now Save our result! This will go in the flattened folder within the PostZooniverse outputs.
+```{r}
+output<-here("Output", "PostZooniverse", "Flattened")
+
+myFile<-str_remove(filename, ".csv") #drop the .csv temporarily
+
+write.csv(Flattened,  paste0(output, "/",myFile,"_","flat_", Sys.Date(), ".csv"))
+
+```
+
