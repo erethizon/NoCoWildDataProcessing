@@ -83,6 +83,10 @@ The join itself is pretty easy:
 ```{r}
 Flattened<-left_join(flat_file, subjects, by='classification_id')
 ```
+Now move subject_ids column to left most position
+```{r}
+Flattened<-Flattened %>% relocate(subject_ids)
+```
 
 Now Save our result! This will go in the flattened folder within the PostZooniverse outputs.
 ```{r}

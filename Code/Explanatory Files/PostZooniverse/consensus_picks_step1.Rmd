@@ -36,8 +36,10 @@ DF %>% View
 
 
 ```
-
-
+Look at those cases for which the number of species was 5
+```{r}
+DF %>% filter(num_species > 4)
+```
 
 ```{r} 
 DF %>% arrange(desc(num_species, subject_ids)) %>% View()
