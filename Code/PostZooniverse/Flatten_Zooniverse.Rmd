@@ -26,7 +26,8 @@ We need to load desired packages and also source custom functions  so that they 
 rm(list = ls())
 library(here)
 library(tidyverse)
-library(tidyjson) #may get error; if so, load from github
+library(tidyjson)#may get error; if so, load from github
+library(jsonlite)
 library(magrittr) #allows piping beyond tidyverse
 library(dplyr)
 library(stringr)

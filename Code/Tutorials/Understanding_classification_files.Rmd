@@ -1,6 +1,7 @@
 ---
 title: "Understanding Classification Files"
-output: html_notebook
+output:
+  pdf_document: default
 ---
 ## Introduction
 Classification files that we download from the Zooniverse appear pretty straightforward at the outset, but the devil is in the details. There are several things that can be difficult to grasp at first:
@@ -15,20 +16,29 @@ This file is geared toward helping you understand how our classification files a
 A "real" classification file will have potentially more than 100,000 rows and running code can be a little slow. Here we will use a sample classification file that is a random selection of 1000 rows taken from one of the larger files.
 
 ## Set things up and pull in the data
-```{r}
+```{r, results = 'hide', message = FALSE}
 rm(list = ls())
 library(here)
 library(tidyverse)
+library(tidyjson)
+library(jsonlite)
 
-myClass<-here("Data","PostZooniverse", "ClassificationFiles", "Small", "sample-classifications.csv")
+myClass<-here("Data","PostZooniverse", "ClassificationFiles", 
+              "Small", "sample-classifications.csv")
 
 myClass<-read.csv(myClass)
 
+image_path<-here("Code", "Tutorials", "images")
+
+myFunctions<-list.files(here("Code", "Functions"), pattern = "R") 
+#points to files that need to be sourced
+
+sapply(here("Code", "Functions", myFunctions), source) 
+#sources all of the functions in the Functions folder.
 ```
 
 ## 1. Take a look at the file
 ```{r}
-View(myClass)
 colnames(myClass)
 ```
 ## 2. Understand the columns
@@ -61,10 +71,96 @@ As a result, the classification file includes three columns about the workflow:
  2. `workflow_name`: The human-readable name we assign to each workflow in our project.
  
  3. `workflow_version`: The specific version of each workflow that is associated with that particular classification.
+ 
+Take a look at the information about `workflow_id`, `workflow_name` and `workflow_version` in our sample file:
+
+```{r}
+unique(myClass$workflow_id)
+```
+There are 4 different workflows.
+
+```{r}
+unique(myClass$workflow_name)
+```
+There are correspondingly 4 different workflow names.
+
+Since each workflow can have multiple versions, let's narrow to the Species identification workflow and see how many versions are represented in the dataset:
+
+```{r}
+myWork<-myClass %>% filter(workflow_name == "Species identification") 
+unique(myWork$workflow_version)
+```
+There are two versions of the Species identification workflow present in the data set.
 
 ### Classification information
+There are 6 columns that pertain to the classification information. Three of the columns, `classification_id`, `created_at` and `subject_ids` are straightforward. Three others, `metadata`, `annotations`, and `subject_data`, are pretty wonky.
 
-Let's take a look at each of the columns in the dataframe:
- * There may or may not be a column called "X". If it is present, it is simply a unique number for each row of data, starting at 1 and going to 1000.
+#### The straightforward bits
+
+ 1. `classification_id`: This column identifies the actual classification instance. Imagine one user making one classification. The `classification_id` is the unique identifier assigned to that individual classification.
  
+ 2. `created_at`: This is simply the time stamp indicating the date and time on which the classification was made.
+ 
+ 3. `subject_ids`: This is the unique identifier for the specific event (set of 3 images) that was being classified. In your mind, you can substitute the term "event" for `subject_id`.
+ 
+Note that both the `classfication_id` and `subject_ids` columns can have repeats of the same unique identifiers. Examine the following three scenarios to see how:
 
+![Scenario 1:](/Users/ebar/Dropbox/R/NoCoWildDataProcessing/Code/Tutorials/images/scenario1.png)
+In Scenario 1, User A and User B each looked at two separate events, `subject_ids` 1 and 2. Thus, there were 4 separate classifications: User A and User B for event 1 and User A and User B for event 2.  In this particular example, each user correctly identified the species, so there are a total of 2 unique species, 1 for each separate event.
+
+![Scenario 2:](/Users/ebar/Dropbox/R/NoCoWildDataProcessing/Code/Tutorials/images/scenario2.png)
+In scenario 2, we again see 4 total classifications (and hence 4 unique `classification_id`s) but this time, User B misidentified the species in event 2 as a red squirrel rather than a gray squirrel. So in this case, two events (`subject_ids` 1 and 2) have a total of 3 species. We'll have to fix this at some point by determining the **consensus species** for each event.
+
+What if, in a single event (set of 3 images) there is **more than one species present**? For example, when we set up game cameras, we often bring Gus along. Thus, an event that captures a camera trapper may also include a dog, for a total of 2 species. How would that appear in the classification file? We see it in Scenario 3:
+
+![Scenario 3:](/Users/ebar/Dropbox/R/NoCoWildDataProcessing/Code/Tutorials/images/scenario3.png)
+In scenario 3, two different users each classify `subject_ids` 1 and 2 correctly. `subject_ids` 1 is an event that captured a white-tailed deer, and `subject_ids` 2 is an event that includes a camera trapper and a dog.
+
+Notice that in this case, we see the following:
+
+ * Two unique `subject_ids` representing the two events
+ * Four unique `classification_id`s representing 2 classifications X 2 users
+ * Repeat instances of `subject_ids`, `classification_id`, `user_name` and `choice`
+ * Three total species represented. Thus the number of species is greater than the number of events.
+ 
+We point these issues out here because they can all trip us up when it comes time to analyze the data.
+
+#### The wonky bits
+
+At this point, you might be wondering "Hey, where is the species identification information? Where are the answers to the questions we ask in the workflow?
+
+Normally, we think of a `.csv` file as having a row for every observation (think event) and a separate column for every variable. If that were the case, we'd expect to find a column called something like `species_id` and perhaps `number_of_animals` or similar.
+
+However, the way in which information that is entered into a webpage (the Zooniverse user interface) is collected and saved sometimes includes something called **JSON** formatting.  **JSON** stands for **J**ava**S**cript **O**bject **N**otation and is often used when data is sent back and forth between a server and a web page. In **JSON** notation, data are organized into arrays of key:value pairs.  For example, a key might be *species* and the value it takes might be *porcupine*.
+
+The three wonky columns in our classification file are wonky because they contain data sorted in JSON format and each single cell contains information about multiple different variables.
+
+Let's take a quick look.  We have a function called `View_annotations` that allows us to display some of the JSON data in the annotations column.
+
+```{r}
+View_annotations(myClass, 1)
+```
+Running `View_annotations` we are looking at a single entry (one cell) of the `annotations` column. What a mess! There are a whole bunch of important pieces of information bunched up in single cells of single columns! But as you read through the mess, you see that the species is identified as the key:value pair "choice": "DEERWHITETAILED" and the answer to the question about whether antlers were present is identified as the key:value pair "ANTLERSPRESENT": "NO". There is other information, as well. At the highest level, there is one task, "T0", and it has one value that includes all of the information the user provided.  
+
+The three columns of data in our classification file that contain JSON data are:
+
+ 4. `metadata`: This column contains some metadata about the project that has to do with the technical implementation of the Zooniverse and is not a column that we need.
+ 
+ 5. `annotations`: As you saw from the example, **this is the key column that contains all of the species identifications!**
+ 
+ 6. `subject_data`: This is another column we need and is the one that contains the information from the manifest file we uploaded with the images to the zooniverse. Thus, it tells us, for example, the camera number and SD card as well as the names of the image files in each event. This is key for being able to go back and cross check our identifications with actual image files.
+ 
+The process of pulling the data out of the JSON-formatted columns is called **flattening**.
+ 
+## Summary
+
+At the outset of this tutorial, we posed 4 questions:
+
+1. What is the difference between a subject and a classification?
+2. Why are there multiple instances of subjects and classifications?
+3. Where the heck are the classifications? 
+4. And what about all the metadata from the manifest?
+
+At this point, you should be able to answer these questions, should be generally familiar with what each column in a classification file tells us, and understand that some of the **juciest** and **most important** pieces of information are burried in the JSON columns.
+
+Now you are ready to move on to actually processing one of these files!
