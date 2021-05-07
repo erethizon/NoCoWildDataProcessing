@@ -1,0 +1,70 @@
+---
+title: "Understanding Classification Files"
+output: html_notebook
+---
+## Introduction
+Classification files that we download from the Zooniverse appear pretty straightforward at the outset, but the devil is in the details. There are several things that can be difficult to grasp at first:
+
+1. What is the difference between a subject and a classification?
+2. Why are there multiple instances of subjects and classifications?
+3. Where the heck are the classifications? 
+4. And what about all the metadata from the manifest?
+
+This file is geared toward helping you understand how our classification files are organized so that you can understand what is happening (and why) when we start manipulating them.
+
+A "real" classification file will have potentially more than 100,000 rows and running code can be a little slow. Here we will use a sample classification file that is a random selection of 1000 rows taken from one of the larger files.
+
+## Set things up and pull in the data
+```{r}
+rm(list = ls())
+library(here)
+library(tidyverse)
+
+myClass<-here("Data","PostZooniverse", "ClassificationFiles", "Small", "sample-classifications.csv")
+
+myClass<-read.csv(myClass)
+
+```
+
+## 1. Take a look at the file
+```{r}
+View(myClass)
+colnames(myClass)
+```
+## 2. Understand the columns
+When the classification file is pulled from the Zooniverse platform, it includes a bunch of metadata about the classification **process** that we may not care about. But it is good to understand these data in case some aspects might be useful to us.  
+
+### User Information
+Several columns track information about the user that was using the Zooniverse to do classifications for us:
+
+ 1. `user_name`: If the user was logged in with an account on the Zooniverse, the name listed is their user name. If the user was not logged in but was classification images, the name will be listed as `"not-logged-in-`followed by a random-appearing series of letters that correspond to the IP address from which the classifying was taking place *for that session only*. If that person then did some classifiying later, or on another machine, they would be assigned a different `"not-logged-in-"` `user_name`.
+ 
+ 2. `user_id`: If the user is logged in to a Zooniverse account, the `user_id` column corresponds to the person's account id number on the Zooniverse. If not logged in, the cell will read `NA`.
+ 
+ 3. `user_ip`: Regardless of whether the user is logged in or not, this column returns the IP address of the computer from which the classifications were being done.
+ 
+ 4. `gold_standard` and `expert`: These are two columns that we currently don't make use of but that might be helpful in the future. Certain users can be assigned "expert" status, which would mean that we would trust their classfications as being true above the input of "regular" users. As a result, these two columns would help us to identify those classfications of very high quality.  Currently, our processing steps delete these columns early in the processing.
+
+### Workflow information
+We set up different workflows on the Zooniverse platform. Each workflow is the set of steps we ask each user to step through. In some workflows, users are simply asked to indicate whether there is an animal in the picture or not, whereas in other workflows, they are asked to identify species and answer questions about the scenes. 
+
+**Each classification file that we download from the Zooniverse includes ALL of the classification data from EVERY workflow we have ever created!**
+
+This is a **really important point**, because it means that an important step in working with our date is isolating a classification file to the desired workflow.
+
+In addition, there may be multiple **versions** of each workflow. For example, we might realize that we left a particular species off the list of choices in a particular workflow and will edit it to add the missing species. When we do that, we automatically create a new workflow version. This is another **really important point** because it means we will need to isolate our classification file to the proper workflow version, as well.
+
+As a result, the classification file includes three columns about the workflow:
+
+ 1. `workflow_id`: The unique number assigned by the Zooniverse to every different workflow in our project.
+ 
+ 2. `workflow_name`: The human-readable name we assign to each workflow in our project.
+ 
+ 3. `workflow_version`: The specific version of each workflow that is associated with that particular classification.
+
+### Classification information
+
+Let's take a look at each of the columns in the dataframe:
+ * There may or may not be a column called "X". If it is present, it is simply a unique number for each row of data, starting at 1 and going to 1000.
+ 
+
