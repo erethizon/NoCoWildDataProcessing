@@ -32,13 +32,6 @@ DF<- DF %>%
             num_class = n_distinct(classification_id),
             num_species = n_distinct(choice)) %>% #because there will be >1 row per classification_id if >1 spp
      arrange(., subject_ids, classification_id) 
-DF %>% View
-
-
-```
-Look at those cases for which the number of species was 5
-```{r}
-DF %>% filter(num_species > 4)
 ```
 
 ```{r} 
@@ -46,31 +39,28 @@ DF %>% arrange(desc(num_species, subject_ids)) %>% View()
 ```
 
 Now that we know the number of species identified per subject id, we need a way to step through and determine the consensus species for each subject id. First we'll write some code to check the species counts per subject id and classification id.
+
 ## Subject level metrics
 ```{r}
 subject_metrics <- DF %>% ungroup %>%
      group_by(., subject_ids) %>%
      mutate(., num_votes = n(), # if a  user ids >1 spp, there will be more votes than classifications
-            diff_species = n_distinct(choice)) # count the total number of different species reported by different users, for pielous score
-
+            diff_species = n_distinct(choice)) # count the total number of different species reported by different users
 ```
-
+Now summarize
 ```{r}
-species_counts <- DF %>% ungroup %>%
-     group_by(subject_ids, classification_id) %>%
-     summarise(total_spp_by_user = mean(num_species)) %>% #Need to select only one row per classification_id, then summarise across those. 
-     summarise(., agg_num_species = round(median(total_spp_by_user), 0))#aggregate species count, which is median rounded up
-     glimpse(species_counts)
-
-cleaned_classifications <- left_join(subject_metrics, species_counts) %>% ungroup
-glimpse(cleaned_classifications)
+subject_summary<-subject_metrics %>% group_by(subject_ids) %>% summarise(
+  numSpecies = max(num_species),
+  numVotes = max(num_votes),
+  diffSpecies = max(diff_species)
+)
 ```
+
 The group of subject ids for which there was > 1 species assigned is evident by filtering species_counts to extract all of those subject id's with > 1 assigned species.  Call this value "checkSubjects".
 
 ```{r}
 checkSubjects <- filter(species_counts, agg_num_species > 1)
 ```
-There are 442 subject id's with > 1 species assigned.
 
 ## Species level metrics
 ```{r}
