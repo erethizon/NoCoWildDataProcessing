@@ -1,11 +1,17 @@
 ---
-title: "Image processing: Assign images to events and create manifest"
+title: "Image processing: Preliminary assignment of images to events"
 output: html_notebook
 ---
 ## Introduction
 In order to review the images from our game camera exploits, we need to batch load the images and their associated manifest file to the **[Zooniverse](http://www.zooniverse.org)**. Our game cameras are set to take pictures in bursts of 3 shots (3 shots = 1 event) - to help ensure identification of the animal.  Thus, the 3 images should not be treated independently, but really as a single observation or **event**.  
 
-There are two key steps in preparing the data for upload to the zooniverse:
+In this step, we will assign each image to an appropriate event. Then we will check to see if any of the events were assigned more than 3 images. This gives us the opportunity to identify and thus avoid uploading batches of images that aren't telling us anything (e.g. 173 pictures of a beech leaf blowing on a branch, 32 images of a camera trapper setting up the camera).
+
+After preliminary assignment, we will manually go back to the image folder and look at the images present in each event that has > 6 images assigned to it. We will delete any images that are superfluous, and then re-create an exif metadata file on the remaining images.
+
+Once we have the final set of images for upload and the final exif metadata file, we will run the code in PreZooniversePrep.Rmd to make final event assignments and create a manifest for upload to the zooniverse platform.
+
+In this code we will thus:
 
  1. Assign each image name to the appropriate event.
  
@@ -17,12 +23,11 @@ There are two key steps in preparing the data for upload to the zooniverse:
   
   - We use our custom function `assignEvents()` to complete step 1.
   
-2. Use the event information generated in step 1 to create the manifest for Zooniverse.
-  - The zooniverse manifest structure requires that the second, third and 4th columns include the file names for the first, second and third images of the set, respectively. (The first column is for a row number).
+2. Use the event information generated in step 1 to create:
+  - a summary dataframe that identifies all those events for which there are > 6 images assigned.
   
-  - take the output produced from our `assignEvents()` function and create a second data frame that assigns each image to the proper column of the proper event. This data frame can then be modified further in R or directly exported as a .csv to the Output -> PreZooniverse -> Manifests folder for further modification in Excel or direct upload to the Zooniverse.
-  - We use our custom function `makeManifest()` to complete step 2.
-
+  - a summary dataframe that identifies the set of cameras and images that need to be checked for possible image removal.
+  
 ## Before you begin
 
 In order to run this code, you will need to have the following in place:
@@ -71,7 +76,7 @@ exif_file_path<-rstudioapi::selectFile(
 Create a variable that is the list of image file names. 
 
 ```{r}
-files<-list.files(image_path, pattern = "\\.jpg$", ignore.case=TRUE) #creates variable called files as vector of image filenames
+files<-list.files(image_path) #creates variable called files as vector of filenames
 ```
 #### Pull in the data
 Pull in the image metadata.  It was generated and saved as a .csv outside of R using a tool called *exiftool* that is run from the command line. 
@@ -82,13 +87,6 @@ Exif <- read.csv(exif_file_path) #obviously, put correct file name here
 #may throw an error if your connection to the t:drive drops.
 ```
 
-Now extract just the csv file name without the file path
-
-```{r}
-FileName<-basename(exif_file_path)
-FilePrefix<-str_remove(FileName, ".csv")
-```
-
 ## Step 1 - Assign images to events
 Now assign images to events using assignEvents function (assignEvents.R).  We will need to set the time threshold (default is 1 minute).If you want a different threshold, pass it (an integer of number of seconds) to the assignEvents as the second argument
 
@@ -96,37 +94,65 @@ Now assign images to events using assignEvents function (assignEvents.R).  We wi
 Exif<-assignEvents(Exif) #no threshold passed, using default of 60 seconds
 ```
 
-#### Save the output of Step 1 in case you need it later for something.
-Now export Exif for use in assigning images to "image numbers" in the zooniverse manifest style. We use a file naming convention based on the name of the original exif data so that it is clear what set of images this file is for.
-
-Strip off the "exif_" lead to the file name and replace with "images_by_event_"
-```{r}
-IbyE<-str_replace(FileName, "exif_", "images_by_event_")
-
-```
-Now we need to save the file. This should go into the project Output -> PreZooniverse -> ImagesByEvent folder. I set that up by defining `output` in the first line of code in the following code chunk:
-
-```{r}
-write.csv(Exif, here("Output", "PreZooniverse", "ImagesByEvent", IbyE))
-```
 This completes Step 1.
 
+## Step 2 - Summarize the number of images per event for checking
 
-## Step 2 - Create the manifest
-Use the end product of step 1 as the input file for the `makeManifest()` function.
+Test to get a sense of which images might need to be deleted - events with a large number of images in them.
+
+
 
 ```{r}
-Manifest<-makeManifest3PerEvent(Exif)
+ToCheck<-summarizeEvents(Exif)
+CheckThese<-str_replace(FileName, "exif_", "to_check")
+write.csv(ToCheck, here("Output", "PreZooniverse", "ToCheck",CheckThese))
+
+################################
+#Eventually may wish to add code that also puts the name of the first image in each event into ExifSummary to make it easier to go back and look at events in the image folders
+##################################
+
+
 ```
 
 
-#### Save the output of Step 2 
-Manifest is our desired output, and it gets saved in Output -> PreZooniverse -> Manifests. We want it to use parts of the original file name to track the set of images it contains. 
-```{r}
-Man_file<-str_replace(FilePrefix, "exif_", "manifest_")
-Man_file<-paste0(Man_file, "_", Sys.Date(), ".csv")
-write.csv(Manifest, here("Output", "PreZooniverse", "Manifests", Man_file))
+
+
+
+#now filter for all events with > 3 images
+
+MoreThan3<-which(ExifSummary$event_length > 6)
+
+
+EventsToCheck<-ExifSummary[MoreThan3,]
+
+#now grab the events in EventsToCheck from Exif
+ExamineThese<-Exif %>% filter(Event %in% EventsToCheck$Event)
+
+#now write them to an output file
+
+examine_file_name<-str_replace(
+  exif_file_path,
+  paste0(path_to_exif_t,"exif"),
+  "examine")
+
+output<-here("Output","PreZooniverse","ImagesByEvent", "Need_check") #sets path for file output.
+write.csv(ExamineThese, paste0(output, "/",examine_file_name))
+
 ```
+Now write EventsToCheck to a file for simplifiying image checking step
+
+Strip off the "exif_" lead to the file name and replace with "need_check_" and then write
+```{r}
+to_check_file_name<-str_replace(
+  exif_file_path,
+  paste0(path_to_exif_t,"exif"),
+  "need_check_events")
+
+output<-here("Output","PreZooniverse","ImagesByEvent", "Need_check") #sets path for file output.
+write.csv(EventsToCheck, paste0(output, "/",to_check_file_name))
+```
+
+Your next step is to go manually to the folder containing your images and use the need_check_events and examine files to determine which files should be deleted prior to moving on to the PreZooniversePrep stage.
 
 ## You did it! Nice job!
 

@@ -1,0 +1,197 @@
+---
+title: "Image processing: Assign images to events and create manifest"
+output: html_notebook
+---
+## Introduction
+In order to review the images from our game camera exploits, we need to batch load the images and their associated manifest file to the **[Zooniverse](http://www.zooniverse.org)**. Our game cameras are set to take pictures in bursts of 3 shots (3 shots = 1 event) - to help ensure identification of the animal.  Thus, the 3 images should not be treated independently, but really as a single observation or **event**.  
+
+There are two key steps in preparing the data for upload to the zooniverse:
+
+ 1. Assign each image name to the appropriate event.
+ 
+  - use the metadata from a folder of images to compare the image time stamps and group images into their respective "events."
+  
+  - read the time stamp associated with each image and use it to determine how long after the previous image each image was taken (i.e. determine the time interval between images)
+  
+  - compare the time intervals to a threshold. An event is a set of pictures taken within a time threshold.  We set our cameras to take up to 3 pictures in a bout, and set them with a 1 minute delay before they can take more pictures, so we can use 1 minute as our threshold.
+  
+  - We use our custom function `assignEvents()` to complete step 1.
+  
+2. Use the event information generated in step 1 to create the manifest for Zooniverse.
+  - The zooniverse manifest structure requires that the second, third and 4th columns include the file names for the first, second and third images of the set, respectively. (The first column is for a row number).
+  
+  - take the output produced from our `assignEvents()` function and create a second data frame that assigns each image to the proper column of the proper event. This data frame can then be modified further in R or directly exported as a .csv to the Output -> PreZooniverse -> Manifests folder for further modification in Excel or direct upload to the Zooniverse.
+  - We use our custom function `makeManifest()` to complete step 2.
+
+## Before you begin
+
+In order to run this code, you will need to have the following in place:
+
+* A folder with a set of images (and only images) in it (typically located on the hard drive attached to the iMac in JHS 115 - you may wish to run this project from that machine).
+* A csv file made using *exiftool* that has date/time metadata from all of the photos in the folder (located in the NoCoWild -> Data -> exif_metadata folder on the t:drive)
+
+
+## Set up the workspace for running the project.
+
+```{r, results='hide'}
+rm(list = ls())
+library(tidyverse)
+library(lubridate)
+library(here) #helps keep directory structure clean when using .Rmd files
+library(rstudioapi) #adds functions for user-supplying file paths, etc.
+myFunctionPath<-here("Code", "Functions") #shortens path for clearer code
+myFunctions<-list.files(myFunctionPath, pattern = "\\.R") #points to files that need to be sourced
+
+sapply(here("Code", "Functions",myFunctions), source)#sources all of the functions in the Functions folder.
+```
+Set up the path to the folder containing the images and the folder containing the metadata file.
+
+```{r}
+rstudioapi::showDialog(
+  title = "Let's give R some file information",
+  message = "Select the folder containing all of the images you plan to upload")
+  
+image_path<-rstudioapi::selectDirectory(
+  path = "/Volumes/NoCoWild",
+  label= "Select folder with images") #asks user to navigate to folder with images
+
+rstudioapi::showDialog(
+  title = "Let's give R some file information",
+  message = "Next select the file containing exif data for those images")
+
+#path to exif file folder on t:drive
+path_to_exif_t<-"/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/exif_metadata/"
+
+exif_file_path<-rstudioapi::selectFile(
+  path = "/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/exif_metadata/",
+  filter = "CSV files (*.csv)",
+  label= "Select desired exif file"
+)
+```
+Create a variable that is the list of image file names. 
+
+```{r}
+files<-list.files(image_path) #creates variable called files as vector of filenames
+```
+#### Pull in the data
+Pull in the image metadata.  It was generated and saved as a .csv outside of R using a tool called *exiftool* that is run from the command line. 
+
+```{r}
+Exif <- read.csv(exif_file_path) #obviously, put correct file name here
+
+#may throw an error if your connection to the t:drive drops.
+```
+## Create a test data set of images from the first 3 cameras in Exif
+
+```{r}
+# Exif$CamSD<-str_sub(Exif$FileName, end=10) 
+# cams<-unique(Exif$CamSD)
+# mycams<-cams[1:3]
+# testDF<-Exif %>% filter(CamSD %in% mycams)
+```
+
+## Step 1 - Assign images to events
+Now assign images to events using assignEvents function (assignEvents.R).  We will need to set the time threshold (default is 1 minute).If you want a different threshold, pass it (an integer of number of seconds) to the assignEvents as the second argument
+
+First use functions to see what they are doing wrong
+
+```{r}
+Exif$DateTimeOriginal<-ymd_hms(Exif$DateTimeOriginal)
+Interval<-abs(diff(Exif$DateTimeOriginal)) #by printing interval to the DF, I could see that when the function moves to the next camera, the difference becomes negative (if for example, the next image from a new camera was taken at an earlier date/time than the last image from the previous camera). When this happens, if you use diff but not abs(diff), the function counts e.g. -47295 as < 2 and does not increment to the next event. I fixed this in the assignEvent function.
+Exif$Interval<-c(1,Interval)
+Exif1<-assignEvents(Exif)
+#Exif2<-assignEventsTest(Exif)
+```
+
+
+```{r}
+DF<-Exif
+threshold<-60
+assignEvents2 <- function(DF, threshold = 60) {
+  DF$CamSD<-str_sub(Exif$FileName, end=10)
+  DF<-DF %>%arrange(CamSD, DateTimeOriginal)#orders DF by camera and then date time original
+  DF$DateTimeOriginal<-ymd_hms(DF$DateTimeOriginal) #make DTO into a date class
+  image_summary<-DF %>% group_by(CamSD) %>% summarise(
+    img_per_cam = length(FileName))
+  #creates a DF with a vector called CamSD of camera names and a vector called img_per_cam that indicates the number of images in each camera to be used to determining row increments
+  
+ image_summary$start<-0
+ image_summary$stop <- 0
+ #creates two more vectors in image_summary (called start and stop) that will store the break points for the events in the main data frame to tell R where to put event numbers
+ 
+  image_summary$start[1]<-1
+  image_summary$stop[1]<-image_summary$img_per_cam[1]
+  for(r in 2:length(image_summary$CamSD)){
+    image_summary$start[r]<- image_summary$stop[r-1]+1
+    image_summary$stop[r]<-image_summary$stop[r-1]+image_summary$img_per_cam[r]
+  }
+#thus far, I have assigned the row break points for adding events in the main data frame.
+  DF$Event<-0
+  
+
+  thresh <- threshold
+  #sets a threshold for number of seconds between events.    The default value is 60 seconds.
+  #start looping over cameras
+  c<-1 #for testing loop - delete later
+  for (c in 1:length(image_summary$CamSD)){
+    subDF<-DF %>% filter(CamSD == image_summary$CamSD[c])
+    cam_ev<-1 #placeholder var to store event nums within a camera
+    cam_L <-length(subDF$DateTimeOriginal) #determines the number of rows in the filtered subset data frame, with each row representing a single image
+    cam_Event_num <- numeric() #empty vector to hold the within_camera event numbers. Need this in addition to ev because of the fact that the diff function will create n-1 time differences between n images so ev will only go to n-1 but Event_num needs to account for all n images.
+    cam_interval <- diff(subDF$DateTimeOriginal) #establishes the interval, in seconds, between consecutive images in the subset of data.
+  cam_cond <- cam_interval > thresh #sets condition for assigning an image to a new event or keeping it with existing event.
+   #now loop through dataset for a single camera and assign events
+  for(i in 1:(cam_L-1)){
+    if(!cam_cond[i]) cam_ev<-cam_ev else cam_ev<-cam_ev+1
+    cam_Event_num<-c(cam_Event_num,cam_ev)
+  }
+    cam_Event<-c(1,cam_Event_num) #a vector of length equal the number of rows in the subDF that lists the event number for each 
+    #now populate DF with the events in cam_Event for the specific camera
+    if(c == 1) {
+      DF$Event[image_summary$start[c]:image_summary$stop[c]]<- cam_Event} else { 
+      cam_Event<-cam_Event+DF$Event[image_summary$stop[c-1]]
+      DF$Event[image_summary$start[c]:image_summary$stop[c]]<-cam_Event}
+  }  
+  return(DF)
+}
+```
+
+Try the new function
+```{r}
+myResult<-assignEvents2(testDF,60)
+```
+
+#### Save the output of Step 1 in case you need it later for something.
+Now export Exif for use in assigning images to "image numbers" in the zooniverse manifest style. We use a file naming convention based on the name of the original exif data so that it is clear what set of images this file is for.
+
+Strip off the "exif_" lead to the file name and replace with "images_by_event_"
+```{r}
+exif_file_name<-str_replace(
+  exif_file_path,
+  paste0(path_to_exif_t,"exif"),
+  "images_by_event_")
+```
+Now we need to save the file. This should go into the project Output -> PreZooniverse -> ImagesByEvent folder. I set that up by defining `output` in the first line of code in the following code chunk:
+
+```{r}
+output<-here("Output","PreZooniverse","ImagesByEvent") #sets path for file output.
+write.csv(Exif, paste0(output, "/",exif_file_name))
+```
+This completes Step 1.
+
+Test to get a sense of which images might need to be deleted - events with a large number of images in them.
+
+```{r}
+ExifSummary<-Exif %>% group_by(CamSD,Event) %>% summarise(
+  event_length = length(Event)
+)                     
+#now filter for all events with > 3 images
+
+MoreThan3<-which(ExifSummary$event_length > 3)
+EventsToCheck<-ExifSummary[MoreThan3,]
+#now grab the events in EventsToCheck from Exif
+ExamineThese<-Exif %>% filter(Event %in% EventsToCheck$Event)
+write.csv(ExamineThese, here("Output", "ExamineThese.csv"))
+```
+
+

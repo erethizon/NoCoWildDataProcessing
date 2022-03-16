@@ -1,28 +1,26 @@
-#This is the function that takes the output of assignEvents and organizes it into the "manifest" file required for uploading photos to the zooniverse. It creates a dataframe (Manifest) to receive data and then loops through the images_by_event file, assigning images to the proper column based on their event membership. Unlike the makeManifest function, it allows for events with more than 3 images. Next it adds data to the manifest (the DateTimeOriginal of each event, the Camera, SD card number and the Event id) to save steps in the future when processing classification files received from the Zooniverse.
+#This is the function that takes the output of assignEvents and organizes it into the "manifest" file required for uploading photos to the zooniverse. It creates a dataframe (Manifest) to receive data and then loops through the images_by_event file, assigning images to the proper column based on their event membership. Next it adds data to the manifest (the DateTimeOriginal of each event, the Camera, SD card number and the Event id) to save steps in the future when processing classification files received from the Zooniverse.
 
 #The argument that is passed to the function is the dataframe that was created by the assignEvents function.The function returns a dataframe that can be exported as the manifest file for this set of images. Any additional data (Site, Round number, or any other fields we wish to add prior to classification) can be added in Excel prior to uploading.
 
 
-makeManifest<-function(DF){
+makeManifest3PerEvent<-function(DF){
 #create empty data frame to receive the data.
 
   #determine the number of events in the DF
   Runs<-unique(DF$Event)
 
-  #determine the number of images in the event with the most images
-  ExifSummary<-DF %>% group_by(Event) %>% summarise(
-    num_images = length(FileName)
-  )
-  MaxImgs<-max(ExifSummary$num_images)
-
-  #create variable with column names
-    Nums<-as.character(c(1:MaxImgs))
-    Names_for_cols<-paste0("Image",Nums)
-
-  #now create dataframe with columns for the set number of images and assign all values as NA
-
-  Manifest<-data.frame(matrix(NA, nrow = length(Runs), ncol = MaxImgs))
-  colnames(Manifest)<-Names_for_cols
+  #build empty dataframe
+  Manifest<-data.frame(
+    Num = integer(length(Runs)),
+    Image1 = character(length(Runs)),
+    Image2 = character(length(Runs)),
+    Image3 = character(length(Runs)),
+    DateTimeOriginal_Img1 =.POSIXct(character(length(Runs))),
+    CamSD = character(length(Runs)),
+    CamNum = character(length(Runs)),
+    SD_Num = character(length(Runs)),
+    Event = integer(length(Runs)),
+    stringsAsFactors = FALSE)
 
 #Loop through DF, read the event number, and assign image names to the proper columns of Manifest
   for (i in 1: length(Runs)) {
@@ -31,23 +29,19 @@ makeManifest<-function(DF){
     Group<-Group[order(Group$DateTimeOriginal),]
     Fill_num<-length(Group$Event)
 
-    #now populate columns with image names
+    z<-1
+    if (Fill_num == 3){
+      Manifest$Image1[i]<-Group$FileName[z]
+      Manifest$Image2[i]<-Group$FileName[z+1]
+      Manifest$Image3[i]<-Group$FileName[z+2]
+    }
+    else {
+      Manifest$Image1[i]<-Group$FileName[z]
+      Manifest$Image2[i]<-Group$FileName[z+1]
+      Manifest$Image3[i]<-"NA"
+    }
 
-    Images<-Group$FileName
-    Manifest[i, 1:Fill_num]<-Images
   }
-
-  #now add columns to Manifest
-  Manifest<-Manifest %>% add_column(Num = NA, .before = "Image1")
-  Manifest<-Manifest %>% add_column(DateTimeOriginal_Img1 = NA,
-                                    CamSD = NA,
-                                    CamNum = NA,
-                                    SD_Num = NA,
-                                    Event = NA, .after = Names_for_cols[MaxImgs])
-  #make DateTimeOriginal into posixct
-  Manifest$DateTimeOriginal_Img1<-.POSIXct(Manifest$DateTimeOriginal_Img1)
-
-
 #Assign row numbers in column 1 of Manifest as required by Zooniverse
   Manifest[,1]<-c(1:length(Runs))
 
