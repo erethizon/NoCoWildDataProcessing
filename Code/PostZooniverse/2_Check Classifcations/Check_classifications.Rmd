@@ -1,0 +1,70 @@
+---
+title: "Exploring flattened data"
+output: html_notebook
+---
+
+The end product of the flattening process is a new dataset that includes all of the species identifications and metadata associated with each event. We need to take those data and explore them to determine how well the classifications were made.
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(here)
+```
+Pull in data
+Use choose file dialog
+```{r}
+#choose classification file; requires active t:drive connection
+rstudioapi::showDialog(
+  title = "Let's give R some file information",
+  message = "Select the file containing the flattened classification data you wish to process")
+
+#path to exif file folder on t:drive
+path_to_flat_file<-"/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/classification_files/"
+
+flat_file_path<-rstudioapi::selectFile(
+  path = "/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/classification_files/",
+  filter = "CSV files (*.csv)",
+  label= "Select desired flat file"
+)
+
+Classified<-read.csv(flat_file_path)
+filename<-basename(flat_file_path)
+```
+How many unique subject_ids?
+```{r}
+Num_subjects<-length(unique(Classified$subject_ids))
+```
+How many observations per subject_id?
+```{r}
+PerSubID<-Classified %>% group_by(subject_ids) %>% summarise(
+  NumClassification = length(choice)
+)
+```
+What is the range in number of classifications per subject id?
+```{r}
+summary(PerSubID$NumClassification)
+```
+Plot a histogram of number of classifications
+```{r}
+ggplot(PerSubID, aes(NumClassification))+
+  geom_histogram()
+```
+Now let's look at those subjects with 1, 2, or 7-10 classfications
+
+```{r}
+Look<-which(PerSubID$NumClassification < 3|PerSubID$NumClassification >6)
+
+PickTheseIDs<-PerSubID$subject_ids[Look]
+```
+Now subset the classification data to just those 76 subject IDS
+
+Now arrange by subject id
+```{r}
+Classified<-arrange(Classified, by = subject_ids)
+```
+
+
+
+
+
+

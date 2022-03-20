@@ -33,6 +33,7 @@ library(dplyr)
 library(stringr)
 library(tidyr)
 library(lubridate)
+library(rstudioapi)
 
 myFunctions<-list.files(here("Code", "Functions"), pattern = "R") 
 #points to files that need to be sourced
@@ -43,18 +44,30 @@ class_file_path<-here("Data", "PostZooniverse", "ClassificationFiles")#sets path
 ```
 
 ###Step 1. Choose the classification file to work with.
-We have multiple classification files. This code asks the user for input so that they can select the classification file to work with. If the classification file is NOT in the folder NoCoWildDataProcessing -> Data -> PostZooniverse -> ClassificationFiles it cannot be processed.
+We have multiple classification files. This code asks the user for input so that they can select the classification file to work with. The classification file should be on the t://drive in Bart_s04/Research_group/NoCoWild/Data/classification_files.
 
 ```{r}
-jdata_and_file_name<-choose_my_class_file(class_file_path)
-#result is a list; first element is the file name, second is the dataframe. Split this into two items so that I have both for future use.
+#choose classification file; requires active t:drive connection
+rstudioapi::showDialog(
+  title = "Let's give R some file information",
+  message = "Select the file containing the classification data you wish to process")
 
-jdata<-as.data.frame(jdata_and_file_name[2])
-filename<-jdata_and_file_name[[1]]
-rm(jdata_and_file_name)#removes the list object to save computer memory
+#path to exif file folder on t:drive
+path_to_class_file<-"/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/classification_files/"
+
+class_file_path<-rstudioapi::selectFile(
+  path = "/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/classification_files/",
+  filter = "CSV files (*.csv)",
+  label= "Select desired classification file"
+)
+
+jdata<-read.csv(class_file_path)
+filename<-basename(class_file_path)
 ```
+
 ###Step 2. Limit to appropriate task and workflow
-Isolating the data to a single workflow and version number
+In this step we isolate the data to a single workflow and version number and then filter to a particular start date.
+
 A zooniverse project can have multiple work flows, and each workflow can have multiple versions. Now that we have prepared the workspace,we need to clean the classification data to focus on just the workflow number and version that we want.
 Uses `choose_my_workflow` function and requires user input in the console.
 
@@ -62,6 +75,12 @@ Uses `choose_my_workflow` function and requires user input in the console.
 data<-choose_my_workflow(jdata)#this asks for user input in the console window - need to respond for the function to run.
 rm(jdata) #removes no longer needed object to save space.
 ```
+Now subset to the start date you want:
+```{r}
+data<-narrow_to_date(data)
+```
+
+
 ### Step 3. Parse the annotations column
 We now flatten the Annotations column by calling the  `flatten_annotations` function. 
 
