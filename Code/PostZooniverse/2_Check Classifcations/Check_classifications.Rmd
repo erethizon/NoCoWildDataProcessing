@@ -56,7 +56,6 @@ Look<-which(PerSubID$NumClassification < 3|PerSubID$NumClassification >6)
 
 PickTheseIDs<-PerSubID$subject_ids[Look]
 ```
-Now subset the classification data to just those 76 subject IDS
 
 Now arrange by subject id
 ```{r}

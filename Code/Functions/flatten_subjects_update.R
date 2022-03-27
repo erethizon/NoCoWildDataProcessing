@@ -17,22 +17,14 @@ subjects<-DF %>%
   spread_values(
     id = jstring(subject,retired,id),
     class.count = jnumber(subject, retired, classifications_count),
+    retire.date = jstring(subject, retired, retired_at),
     round = jstring("subject", "#round"),
     Imj1 = jstring(subject, image1),
     Imj2 = jstring(subject,image2),
     Img3 = jstring(subject, image3),
-    I1 = jstring(subject, Image1),
-    I2 =jstring(subject, Image2),
-    I3 =jstring(subject, Image3),
     CamNum = jstring("subject", "#cam_num"),
-    CamNum2 = jstring(subject, CamNum),
     SD_card_num = jstring("subject", "#sd_card"),
-    SD_card = jstring(subject, SD_Num),
-    Event = jstring("subject", "event_num"),
-    Event1 = jstring(subject, Event),
-    Treatment = jstring("subject", "#treatment"),
-    Phase = jstring("subject", "#phase"),
-    Forest = jstring("subject", "#forest")
+    Event = jstring("subject", "event_num")
   )
 
 subjects<-select(subjects, !c(subject_ids, user_name, workflow_version)) #gets rid of subject_ids, user_name

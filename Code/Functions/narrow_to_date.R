@@ -8,12 +8,11 @@ narrow_to_date<-function(df){
 
 
   my_years <- select.list(unique(df$cYear),multiple=TRUE,
-                      title='select the years for which you would like data',
-                      graphics=TRUE)
+                      title='In what year(s) were the classifications you are after made?')
 
   DF2<-filter(df, cYear %in% my_years)
   my_months <-select.list(unique(DF2$cMonth), multiple = TRUE,
-                          title = "Select the months for which you would like data")
+                          title = "In what month(s) where the classifications you are after made?")
 
   DF2<-filter(DF2, cMonth %in% my_months)
   return(DF2)
