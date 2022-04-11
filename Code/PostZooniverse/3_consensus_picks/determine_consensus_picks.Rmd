@@ -53,9 +53,8 @@ Parse the flat file into several data frames for simplicity; they will be joined
 
 ```{r}
 Flat<-Flat %>% select(!X)
-Meta<-Flat %>% select(c(subject_ids, classification_id, user_name:array.index, workflow_id, id, round, Imj1, Imj2, Img3, CamNum, SD_card_num, Event))
-Choices<-Flat %>% select(c(subject_ids, classification_id,choice, class.count, Event))
-Answers<-Flat %>% select(c(subject_ids, classification_id,choice,answers.HOWMANY:answers.WHATTYPEOFHUMAN))
+
+Choices<-Flat
 ```
 Now work with Choices.
 
@@ -108,17 +107,6 @@ Now get the cleaned classifications
 cleaned_classifications <- left_join(subject_metrics, species_counts) %>% ungroup
 glimpse(cleaned_classifications)
 ```
-The group of subject for which there was more than one species present in the images is that set for which the number of votes exceeds the number of classifications. We'll look at it two different ways. First, just identify those subjects and put them in a new data frame.
-
-```{r}
-MoreThan1<-cleaned_classifications %>% filter(num_votes > num_class)
-```
-
-Now let's filter out the group for which the number of classfications is equal to the number of votes AND for which there is more than one species identified.
-
-```{r}
-NeedsCheck<-cleaned_classifications %>% filter(num_votes == num_class & num_diff_species > 1)
-```
 
 ## Species level metrics
 ```{r}
@@ -131,21 +119,20 @@ This yields species_votes, which tells us, for each subject_id, the number of cl
 ```{r}
 species_votes <- grouped_classifications %>% 
      # for every species within a subject, aggregate votes.
-     summarise(., votes = n_distinct(classification_id)) %>% #count up the number of votes per species choice
+     summarise(., votes = n_distinct(classification_id),
+               Event = max(Event)) %>% #count up the number of votes per species choice
      mutate(propvote = votes/sum(votes), #calculate proportion of votes for this species
             propclass = votes/num_class) 
 ```
 
 When num_votes > num_class you have a situation where there was more than one species detected in an event (typically Gus and one or more camera trappers.). In these cases, propvote will not equal propclass, and the sum of propclass for that subject id will be greater than 1.0 (though the sum of propvote will be equal to 1.)
 
-Let's find these to compare with MoreThan1 above.
-
 ```{r}
-MoreThan1a<-species_votes %>% filter(num_votes > num_class)
+MoreThan1<-species_votes %>% filter(num_votes > num_class)
 ```
 They each show the same subject_ids so things look good.
 
-Let's filter species_votes to extract the subjects for which there is more than 1 species but the number of votes = num_class. These will be the cases in which there one species in the event but there is a discrepancy about what the species is.
+Let's filter species_votes to extract the subjects for which there is more than 1 species but the number of votes = num_class. These will be the cases in which there is one species in the event but there is a discrepancy about what the species is.
 
 ```{r}
 subjects_to_check<-species_votes %>% filter(num_votes == num_class & num_diff_species > 1)
@@ -161,16 +148,12 @@ Now get the list of the subject ids in species_votes_to_check and use it to filt
 ```{r}
 subjects_to_filter<-unique(species_votes_to_check$subject_ids)
 ```
-Now join cleaned_classifications to Meta, Answers
-```{r}
-Rejoined<-left_join(cleaned_classifications, Meta)
-```
 
 
 And now filter cleaned_classifications by those data
 
 ```{r}
-filesToCheck<-filter(cleaned_classifications, subject_ids %in% Subjects_to_filter)
+filesToCheck<-filter(cleaned_classifications, subject_ids %in% subjects_to_filter)
 ```
 And now summarize
 ```{r}
@@ -232,15 +215,15 @@ NeedAssignment<-cleaned_classifications %>% filter(subject_ids %in% Subjects_to_
 Now create data frame to accept final assignments
 
 ```{r}
-Assigned<-data.frame(subject_ids = integer(1421),
-                      Event = integer(1421),
-                     Img1 = character(1421), 
-                      Img2 = character(1421), 
-                      Img3 = character(1421),
-                      round = character (1421),
-                      CamNum = integer(1421), 
-                      SD_card = integer(1421),
-                     choice = character (1421))
+Assigned<-data.frame(subject_ids = integer(length(Subjects_to_keep)),
+                Event = integer(length(Subjects_to_keep)),
+                Img1 = character(length(Subjects_to_keep)), 
+                Img2 = character(length(Subjects_to_keep)),
+                Img3 = character(length(Subjects_to_keep)),
+                round = character (length(Subjects_to_keep)),
+                CamNum = integer(length(Subjects_to_keep)), 
+                SD_card = integer(length(Subjects_to_keep)),
+                choice = character (length(Subjects_to_keep)))
 ```
 Now loop
 ```{r}
