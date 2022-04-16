@@ -74,6 +74,10 @@ Now we can parse the data.
 ```{r}
 subjects<-flatten_subjects(data)
 ```
+
+flatten_subjects has some problems since it is customized for there being particular pieces of information in the manifest. I need to tweak it so that it let's you customize what it returns.
+
+
 Notice that if flat_file has fewer rows than subjects it is because for some subset of the data (equal in number to the difference in length b/w the subjects data and the flat_file data) no identification was made, so the annotations column has no information.
 
 ###Step 4. Merge the annotations and subjects data
