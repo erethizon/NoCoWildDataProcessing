@@ -4,6 +4,5 @@
 .Ruserdata
 *.html
 *.pdf
-/Data/PostZooniverse/ClassificationFiles/Large/*.csv
 *.csv
 /Manifests/*.csv
