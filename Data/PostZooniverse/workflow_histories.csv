@@ -1,0 +1,8 @@
+WorkflowID,WorkflowName,CurrentVersion,Description,Status
+9599,Workflow 1,123.17,Original workflow,Not in use
+12161,Workflow 1.1,6.5,Next version of original workflow,Not in use
+12477,Team Workflow 1.1,1.1,Not sure,Not in use
+16675,Is there an animal,15.24,Workflow to determine if there is an animal in the event; currently in use,In use
+16676,Acoustic test,1.1,Testing a workflow to allow folks to identify sounds; in development,In development
+16695,Species Identification,11.8,Workflow to identify species from the images that have animals; in use,In use
+21244,SpeciesID 3 classification,1.1,Workflow to minimize the number of required classifications to 3; not in use,In development

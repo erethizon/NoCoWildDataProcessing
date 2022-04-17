@@ -6,3 +6,4 @@
 *.pdf
 *.csv
 /Manifests/*.csv
+!/Data/PostZooniverse/workflow_histories.csv
