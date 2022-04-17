@@ -12,7 +12,7 @@ DF$new_sub_data<-DF$subject_data %>% str_replace(subj_id_string, "subject") #rep
 
 subjects<-DF %>%
   select(., subject_ids, user_name, classification_id,workflow_id,
-         workflow_version, subject_ids, new_sub_data) %>%
+         workflow_version, subject_ids, created_at, new_sub_data) %>%
   as.tbl_json(json.column = "new_sub_data") %>%
   spread_values(
     id = jstring(subject,retired,id),
@@ -21,9 +21,18 @@ subjects<-DF %>%
     Imj1 = jstring(subject, image1),
     Imj2 = jstring(subject,image2),
     Img3 = jstring(subject, image3),
+    I1 = jstring(subject, Image1),
+    I2 =jstring(subject, Image2),
+    I3 =jstring(subject, Image3),
     CamNum = jstring("subject", "#cam_num"),
+    CamNum2 = jstring(subject, CamNum),
     SD_card_num = jstring("subject", "#sd_card"),
-    Event = jstring("subject", "event_num")
+    SD_card = jstring(subject, SD_Num),
+    Event = jstring("subject", "event_num"),
+    Event1 = jstring(subject, Event),
+    Treatment = jstring("subject", "#treatment"),
+    Phase = jstring("subject", "#phase"),
+    Forest = jstring("subject", "#forest")
   )
 
 subjects<-select(subjects, !c(subject_ids, user_name, workflow_version)) #gets rid of subject_ids, user_name
