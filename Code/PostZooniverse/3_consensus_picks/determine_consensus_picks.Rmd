@@ -52,7 +52,7 @@ Flat<-Flat %>% filter(round !="beta test")
 Parse the flat file into several data frames for simplicity; they will be joined back together later.
 
 ```{r}
-Flat<-Flat %>% select(!X)
+Flat<-Flat %>% select(!c(X, X.1))
 
 Choices<-Flat
 ```
@@ -159,7 +159,7 @@ And now summarize
 ```{r}
 filesToCheck<-filesToCheck %>% group_by(subject_ids) %>% summarize(
   Event = Event,
-  Img1 = Imj1,
+  Img1 = Img,
   Img2 = Imj2,
   Img3 = Img3,
   round = round,

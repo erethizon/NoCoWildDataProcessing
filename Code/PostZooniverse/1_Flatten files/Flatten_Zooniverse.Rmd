@@ -98,7 +98,9 @@ output<-here("Output", "PostZooniverse", "Flattened")
 
 myFile<-str_remove(filename, ".csv") #drop the .csv temporarily
 
-write.csv(Flattened,  paste0(output, "/",myFile,"_","flat_", Sys.Date(), ".csv"))
+write.csv(Flattened,  paste0(output, "/",myFile,"_","_flat_", Sys.Date(), ".csv"))
 
 ```
+
+
 
