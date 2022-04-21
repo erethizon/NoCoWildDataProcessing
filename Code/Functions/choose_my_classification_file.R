@@ -2,7 +2,7 @@
 
 #The function takes as an argument the path to the folder containing the classification files.
 
-choose_my_class_file<-function(classification_file_path){
+choose_my_classification_file<-function(classification_file_path){
   #list classification files
   class_files<-list.files(classification_file_path)
 
