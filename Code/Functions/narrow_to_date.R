@@ -1,6 +1,7 @@
 #function that asks the user to narrow the file to the date range specified
 
 narrow_to_date<-function(df){
+  require(lubridate)
   #parse created_at column
   df$created_at<-ymd_hms(df$created_at)
   df$cYear<-year(df$created_at)

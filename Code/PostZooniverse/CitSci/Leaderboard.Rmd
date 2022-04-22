@@ -1,19 +1,114 @@
 ---
-title: "R Notebook"
+title: "Determine Zooniverse Leaderboard"
 output: html_notebook
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+We need a set of scripts that we can use to look at a zooniverse classification file and determine who has made the most classifications in a particular time span. This code will do jus that.
 
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+Set things up
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(here)
+library(lubridate)
+library(rstudioapi)
+
+myFunctions<-list.files(here("Code", "Functions"), pattern = "R") 
+#points to files that need to be sourced
+
+sapply(here("Code", "Functions", myFunctions), source) #sources all of the functions in the Functions folder.
+```
+### Step 1. Choose the classification files to work with.
+We have multiple classification files. The `choose_my_classification_file` function asks the user for input so that they can select the classification file to work with. The classification file should be on the t://drive in Bart_s04/Research_group/NoCoWild/Data/classification_files.
+
+
 
 ```{r}
-plot(cars)
+animals<-choose_file_isolate_workflow()
+species<-choose_file_isolate_workflow()
+```
+Now isolate each file to the date ranges of interest using `narrow_to_date.R`
+
+```{r}
+animals<-narrow_to_date(animals[[1]])
+species<-narrow_to_date(species[[1]])
+```
+### Step 2. Now, for each data frame, identify users and then quantify classifications per user per time.
+
+#### Start with Is there an animal workflow ("animals"):
+Identify users
+
+How many are there?
+```{r}
+unique(animals$user_name)
+length(unique(animals$user_name))
+```
+Now combine all the not-logged-in users to a single username.
+
+```{r}
+pattern<-"not-logged-in"
+replacement<-grep("not-logged-in",animals$user_name)
+#identifies all rows with user name including not logged
+#in
+
+#now reassign factor name
+animals$user_name[replacement]<- "Not logged in"
+
+unique(animals$user_name)
+```
+Now assign each day to a week of the year
+
+```{r}
+animals<-animals %>% mutate(
+  week=isoweek(created_at)
+)
+```
+Now summarize effort by user by week
+```{r}
+a_Effort<-animals %>% group_by(cYear, week, user_name) %>% summarize(
+  Num_Class = length(classification_id),
+  max_date = max(created_at)
+)
+
+a_Effort2022<-Effort %>% filter(cYear == 2022)
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+#### Now do similar for species identification
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+Continue with Species identification workflow ("species"):
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+How many are there?
+```{r}
+unique(species$user_name)
+length(unique(species$user_name))
+```
+Now combine all the not-logged-in users to a single username.
+
+```{r}
+pattern<-"not-logged-in"
+replacement<-grep("not-logged-in",species$user_name)
+#identifies all rows with user name including not logged
+#in
+
+#now reassign factor name
+species$user_name[replacement]<- "Not logged in"
+
+unique(species$user_name)
+```
+Now assign each day to a week of the year
+
+```{r}
+species<-species %>% mutate(
+  week=isoweek(created_at)
+)
+```
+Now summarize effort by user by week
+```{r}
+s_Effort<-species %>% group_by(cYear, week, user_name) %>% summarize(
+  Num_Class = length(classification_id),
+  max_date = max(created_at)
+)
+
+s_Effort2022<-s_Effort %>% filter(cYear == 2022)
+```
 
