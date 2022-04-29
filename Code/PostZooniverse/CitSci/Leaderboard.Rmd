@@ -70,7 +70,15 @@ a_Effort<-animals %>% group_by(cYear, week, user_name) %>% summarize(
   max_date = max(created_at)
 )
 
-a_Effort2022<-Effort %>% filter(cYear == 2022)
+a_Effort2022<-a_Effort %>% filter(cYear == 2022)
+```
+Now filter to just observations between 23 April and 29 April 2022.
+
+```{r}
+focal<-animals %>% filter(created_at > "2022-04-22 23:59:59") %>% group_by(user_name) %>% summarise(
+  Num_Class = length(classification_id),
+  max_date = max(created_at)
+)
 ```
 
 #### Now do similar for species identification
@@ -110,5 +118,21 @@ s_Effort<-species %>% group_by(cYear, week, user_name) %>% summarize(
 )
 
 s_Effort2022<-s_Effort %>% filter(cYear == 2022)
+```
+Now filter to just observations between 23 April and 29 April 2022.
+
+```{r}
+focal_s<-species %>% filter(created_at > "2022-04-22 23:59:59") %>% group_by(user_name) %>% summarise(
+  Num_Class = length(classification_id),
+  max_date = max(created_at)
+)
+```
+
+Now join both by user_name to get total ranking
+```{r}
+final<-full_join(focal, focal_s, by = "user_name")
+final<-final %>% mutate(
+  total = Num_Class.x +Num_Class.y
+)
 ```
 
