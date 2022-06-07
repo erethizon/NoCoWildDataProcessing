@@ -7,4 +7,6 @@
 *.csv
 /Manifests/*.csv
 #add a line to track the workflow_histories.csv file even though it is a .csv
-!/Data/PostZooniverse/workflow_histories.csv
+!/Data/PostZooniverse/workflow_histories.csv/
+*.xlsx
+

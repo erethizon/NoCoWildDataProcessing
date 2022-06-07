@@ -1,0 +1,17 @@
+---
+title: "Analysis notes - June 7 2022"
+author: "Erika"
+date: '2022-06-07'
+output: html_document
+---
+
+## Overview
+Notes on North Country Wild image analysis. This page is just for documenting steps, not code. 
+
+Currently, I'm working on analysis of game camera images that have already been collected and identified on the zooniverse platform. My goal is to complete steps to get a "ready for analysis" data set and then to do some data analysis.  All of that will take place in .Rmd code files. 
+
+I have been working on organizing a spreadsheet, saved in the "Data" folder as `camera_deployments_master.xlsx`. This file is a record of each game camera deployment, starting with Donovan Spaulding's work and going through Maggie Munschauer's work. It does not (yet) include the camera trap information from Summer/Fall 2021, which has still to be analyzed on the Zooniverse. I have also been working on a master list of Zooniverse workflows and workflow versions and associating the correct workflow with specific phases of image classification so that it is easier to extract data from certain phases of the project to work with. The data on workflows is saved on the SLU t:/ drive in Bart_S04/Research_group/NoCoWild/Zooniverse/Workflows/workflow list.xlsx.
+
+Next I will work to pull in the master classification file and isolate subchunks that represent the unique sets of camera traps deployed at different times. 
+
+Created a folder in Code/PostZooniverse called 2022-June which includes the file `1_Flatten_Zooniverse.Rmd` which has been modified to show all the code steps to flatten the classification file (just one) in three passes to get the data from each of the 3 main workflow versions.  The files were saved and exported to the Output folder.

@@ -4,7 +4,7 @@
 #now flatten data to relevant tasks within a classification
 flatten_annotations<-function(json_data){
   flat_to_task<-json_data %>%
-    select(., classification_id, user_name, subject_ids,   workflow_version, annotations) %>%
+    select(., classification_id, user_name, subject_ids,   workflow_name, workflow_version, annotations) %>%
     as.tbl_json(json.column = "annotations") %>%
     gather_array(column.name = "task_index") %>%  #really important for joining later
     spread_values(
