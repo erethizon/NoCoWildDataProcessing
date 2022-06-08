@@ -57,7 +57,7 @@ Meta$Class.ID.max[3]<-max(CWMM$classification_id)
 
 
 ```
-Now get rid of the beta test classfications from CWMM and then save it.
+Now get rid of the beta test classifications from CWMM and then save it.
 
 ```{r}
 CWMM<-CWMM %>% filter(round != "beta test")

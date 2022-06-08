@@ -24,6 +24,33 @@ DS$Source<-"DS"
 KA$Source<-"KA"
 CWMM$Source<-"CWMM"
 ```
+Need to now get a list of the columns I want to keep from each dataset so that I can create the columns in some data sets as needed for joining later.
+
+From CWMM I want:
+subject_ids
+classification_id
+user_name
+workflow_name
+workflow_version
+choice
+created_at
+round
+Img1
+Img2
+Img3
+CamNum
+SD_card_num
+For_name
+For_type
+CamSD
+Phase
+Forest
+Treatment
+DTO
+Source
+
+
+
 Set things up for looping through each dataframe and repeating the same steps using purrr. Need to put all the dataframes into a list
 
 ```{r}
@@ -32,7 +59,7 @@ mydfs<-list(DS, KA, CWMM)
 #now create function that does things I need
 clean_em_up<-function(df){
  df<-df %>% select(!c(X.1, X))
-  df<-df %>% select(c(Source,subject_ids:workflow_version, choice, created_at, Img1, CamSD, For_name))
+  df<-df %>% select(c(Source,subject_ids:workflow_version, choice, created_at, Img1, Img2, Img3, CamSD, For_name))
 }
 mydfs<-mydfs %>% map(clean_em_up)
  
@@ -95,6 +122,35 @@ max_ops<-obs_per_subject %>% map(
     })
 Meta$max_obs_per_subject<-max_ops %>% map(pluck,1)
 ```
+
+Now see if I can join the date-time of each object for each image from the camera exif data. I created a master DTO sheet to attempt with.
+
+Read in the exif data
+```{r}
+exif<-read.csv(here("Data", "masterDTO.csv"))
+exif$FileName2<-exif$FileName
+```
+Now try to join to All
+
+```{r}
+Main<-left_join(All, exif, by = c("Img1" = "FileName2"))
+```
+Now dump some columns to make it easier to look at
+```{r}
+Main<-Main %>% select(!c(FileSize, ImageSize, FocalLength, ShutterSpeed, Aperture, ISO, WhiteBalance, Flash))
+```
+And now relocate things
+```{r}
+Main<-Main %>% relocate(CamSD.y, .after = CamSD.x)
+Main<-Main %>% relocate(DateTimeOriginal,.before = created_at)
+Main<-Main %>% relocate(FileName, .before = user_name)
+```
+Now I can also look at which workflows were associated with which batches of pictures. To do so, I'm going to get sub-dataframes from Main that correspond to year and Round
+
+```{r}
+unique(Main$Year)
+```
+
 
 
 
