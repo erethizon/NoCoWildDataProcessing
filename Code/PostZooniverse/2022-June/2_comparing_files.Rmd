@@ -1,0 +1,99 @@
+---
+title: "Comparing datasets"
+output: html_notebook
+---
+
+I'm curious to look at the range of dates for each of the 3 data sets I just made so I can see if I can decipher which projects are split between classification files.  
+
+Begin by cleaning things up and pulling in data
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(here)
+```
+Pull in the data files
+
+```{r}
+DS<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-07_wf1_donovan.csv"))
+
+KA<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-07_wf1.1_kate.csv"))
+
+CWMM<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-07_sp_id_cole_maggie.csv"))
+```
+Ok, now let's gather some summary information about these files.
+
+Put a place to store the info
+
+```{r}
+myfiles<-c("WF1", "WF1.1", "WF_sp_id")
+Meta<-data.frame(
+  Workflow = character(3),
+  Start.date = POSIXct(3),
+  End.date = POSIXct(3),
+  Class.ID.min = numeric(3),
+  Class.ID.max = numeric(3)
+)
+
+Meta$Workflow<-myfiles
+```
+
+Now grab some of the information from each file:
+
+```{r}
+Meta$Start.date[1]<-min(DS$created_at)
+Meta$End.date[1]<-max(DS$created_at)
+Meta$Start.date[2]<-min(KA$created_at)
+Meta$End.date[2]<-max(KA$created_at)
+Meta$Start.date[3]<-min(CWMM$created_at)
+Meta$End.date[3]<-max(CWMM$created_at)
+
+Meta$Class.ID.min[1]<-min(DS$classification_id)
+Meta$Class.ID.max[1]<-max(DS$classification_id)
+Meta$Class.ID.min[2]<-min(KA$classification_id)
+Meta$Class.ID.max[2]<-max(KA$classification_id)
+Meta$Class.ID.min[3]<-min(CWMM$classification_id)
+Meta$Class.ID.max[3]<-max(CWMM$classification_id)
+
+
+```
+Now get rid of the beta test classfications from CWMM and then save it.
+
+```{r}
+CWMM<-CWMM %>% filter(round != "beta test")
+write.csv(CWMM, here("Output", "PostZooniverse", "Flattened", "no-co-wild-classifications.6June2022_flat_2022-06-07_sp_id_cole_maggie_no_beta_test.csv"))
+```
+How many unique subjects are there per file?
+
+```{r}
+Meta$num_subjects<-NA
+Meta$num_subjects[1]<-length(unique(DS$subject_ids))
+Meta$num_subjects[2]<-length(unique(KA$subject_ids))
+Meta$num_subjects[3]<-length(unique(CWMM$subject_ids))
+```
+Create a CamSD column for each data set and use it to calculate the number of cameras in each dataset.
+
+```{r}
+DS$CamSD<- paste0(DS$CamNum,"-",DS$SD_card_num)
+Meta$num_cams<-NA
+Meta$num_cams[1]<-length(unique(DS$CamSD))
+
+KA$CamSD<- paste0(KA$CamNum,"-",KA$SD_card_num)
+Meta$num_cams[2]<-length(unique(KA$CamSD))
+
+KA$CamSD<- paste0(KA$CamNum,"-",KA$SD_card_num)
+Meta$num_cams[2]<-length(unique(KA$CamSD))
+
+CWMM$CamSD<- paste0(CWMM$CamNum,"-",CWMM$SD_card_num)
+Meta$num_cams[3]<-length(unique(CWMM$CamSD))
+```
+Now write meta, CWMM, DS and KA for further use.
+
+```{r}
+write.csv(DS, here("Code", "PostZooniverse", "2022-June", "Data", "DS.csv"))
+write.csv(KA, here("Code", "PostZooniverse", "2022-June", "Data", "KA.csv"))
+write.csv(CWMM, here("Code", "PostZooniverse", "2022-June", "Data", "CWMM.csv"))
+write.csv(Meta, here("Code", "PostZooniverse", "2022-June", "Data", "Meta.csv"))
+```
+
+

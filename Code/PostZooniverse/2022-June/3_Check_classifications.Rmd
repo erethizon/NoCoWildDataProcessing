@@ -1,0 +1,103 @@
+---
+title: "Exploring flattened data"
+output: html_notebook
+---
+
+The end product of the flattening process is a new dataset that includes all of the species identifications and metadata associated with each event. We need to take those data and explore them to determine how well the classifications were made.
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(here)
+```
+Pull in data
+```{r}
+CWMM<-read.csv(here("Code", "PostZooniverse","2022-June", "Data", "CWMM.csv"))
+DS<-read.csv(here("Code", "PostZooniverse","2022-June", "Data", "DS.csv"))
+KA<-read.csv(here("Code", "PostZooniverse","2022-June", "Data", "KA.csv"))
+Meta<-read.csv(here("Code", "PostZooniverse","2022-June", "Data", "Meta.csv"))
+```
+Let's reduce the dataframes to common columns, combine then and then use for analysis.
+
+```{r}
+DS$Source<-"DS"
+KA$Source<-"KA"
+CWMM$Source<-"CWMM"
+```
+Set things up for looping through each dataframe and repeating the same steps using purrr. Need to put all the dataframes into a list
+
+```{r}
+
+mydfs<-list(DS, KA, CWMM)
+#now create function that does things I need
+clean_em_up<-function(df){
+ df<-df %>% select(!c(X.1, X))
+  df<-df %>% select(c(Source,subject_ids:workflow_version, choice, created_at, Img1, CamSD, For_name))
+}
+mydfs<-mydfs %>% map(clean_em_up)
+ 
+```
+
+Now combine those 3 list items into a single data frame using bind_rows from tidyverse
+```{r}
+All<-bind_rows(mydfs)
+```
+
+
+How many observations per subject_id?
+```{r}
+Meta$mean_obs_per_subject<- NA
+obs_per_subject<-mydfs %>% 
+  map(
+    function(df){
+      df<-df %>% group_by(subject_ids) %>% summarise(
+      obs_per_subject = length(choice)) 
+      })
+mean_ops<-obs_per_subject %>% map(
+  function(df){
+    df<-df %>% select(obs_per_subject)
+    mean_ops<-mean(df$obs_per_subject, na.rm = T)
+    
+    })
+Meta$mean_obs_per_subject<-mean_ops %>% map(pluck,1)
+
+```
+What is the range in number of classifications per subject id?
+```{r}
+Meta$min_obs_per_subject<- NA
+obs_per_subject<-mydfs %>% 
+  map(
+    function(df){
+      df<-df %>% group_by(subject_ids) %>% summarise(
+      obs_per_subject = length(choice)) 
+      })
+min_ops<-obs_per_subject %>% map(
+  function(df){
+    df<-df %>% select(obs_per_subject)
+    min_ops<-min(df$obs_per_subject, na.rm = T)
+    
+    })
+Meta$min_obs_per_subject<-min_ops %>% map(pluck,1)
+
+
+Meta$max_obs_per_subject<- NA
+obs_per_subject<-mydfs %>% 
+  map(
+    function(df){
+      df<-df %>% group_by(subject_ids) %>% summarise(
+      obs_per_subject = length(choice)) 
+      })
+max_ops<-obs_per_subject %>% map(
+  function(df){
+    df<-df %>% select(obs_per_subject)
+    max_ops<-max(df$obs_per_subject, na.rm = T)
+    
+    })
+Meta$max_obs_per_subject<-max_ops %>% map(pluck,1)
+```
+
+
+
+
+
+
