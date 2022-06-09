@@ -15,38 +15,34 @@ subjects<-DF %>%
          workflow_version, subject_ids, created_at, new_sub_data) %>%
   as.tbl_json(json.column = "new_sub_data") %>%
   spread_values(
-    #1st values from original manifest format (for workflow 1, Donovan)
-    id = jstring(subject,ID),
-    round = jstring("subject", "!Round"),
-    batch = jstring("subject","!Batch"),
-    Img1 = jstring(subject, Image1),
-    Img2 = jstring(subject,Image2),
-    Img3 = jstring(subject, Image3),
-    CamMod = jstring(subject, CamModel),
-    CamNumber = jstring("subject", "#CamNumber"),
-    SDNumber = jstring("subject", "#SDCardNum"),
-    Forest = jstring("subject", "#ForestName"),
-    For_type = jstring("subject", "!ForestType"),
-
-    #Next values from workflow 1.1 manifests (Kate)
+    #1st values from original manifest format
+    id = jstring(subject,retired,id),
     class.count = jnumber(subject, retired, classifications_count),
     retire.date = jstring(subject, retired, retired_at),
-
-    #Next values from Species identification manifests (Cole)
-    round1 = jstring("subject", "#round"),
-    Img4 = jstring(subject, image1),
-    Img5 = jstring(subject,image2),
-    Img6 = jstring(subject, image3),
+    round = jstring("subject", "#round"),
+    Img1 = jstring(subject, image1),
+    Img2 = jstring(subject,image2),
+    Img3 = jstring(subject, image3),
     CamNum = jstring("subject", "#cam_num"),
     SD_card_num = jstring("subject", "#sd_card"),
     Event = jstring("subject", "event_num"),
-    #Next values from Species identification manifests (Maggie)
+    #values from second manifest format
+    Batch = jstring("subject", "!Batch"),
+    Round2 = jstring("subject", "!Round"),
+    Img4 = jstring(subject, Image1),
+    Img5 = jstring(subject, Image2),
+    Img6 = jstring(subject, Image3),
+    CamNum2 = jstring("subject", "#CamNumber"),
+    SDCard2 = jstring("subject", "#SDCardNum"),
+    For_type = jstring("subject", "!ForestType"),
+    For_name = jstring("subject", "#ForestName"),
+    #values from third manifest format
     Num = jstring(subject, Num),
     CamSD = jstring(subject, CamSD),
     Event1 = jstring(subject, Event),
     Phase = jstring("subject", "#phase"),
-    CamNum2 = jstring(subject, CamNum),
-    SDCard = jstring(subject, SD_num),
+    CamNum3 = jstring(subject, CamNum),
+    SDCard3 = jstring(subject, SD_num),
     Forest = jstring("subject", "#forest"),
     Lat = jstring("subject", "#latitude"),
     Long = jstring("subject", "#longitude"),
