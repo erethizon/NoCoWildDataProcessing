@@ -73,7 +73,7 @@ flat_file<-flatten_annotations(data) #this is slow; could we write faster code? 
 Now we can parse the data.
 
 ```{r}
-subjects<-flatten_subjects_Donovan(data)
+subjects<-flatten_subjects(data)
 ```
 
 I've updated flatten_subjects so that it reports a lot of columns, parsing all of the subject columns regardless of the format of the manifest that was uploaded to the zooniverse. So now we can sort by project and isolate data from different manifests that use the same workflow. 
@@ -132,7 +132,7 @@ flat_file<-flatten_annotations(data) #this is slow; could we write faster code? 
 Now we can parse the data.
 
 ```{r}
-subjects<-flatten_subjects_Kate(data)
+subjects<-flatten_subjects(data)
 ```
 
 ###Step 4. Merge the annotations and subjects data

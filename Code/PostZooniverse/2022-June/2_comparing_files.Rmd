@@ -15,12 +15,27 @@ library(here)
 Pull in the data files
 
 ```{r}
-DS<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-07_wf1_donovan.csv"))
+DS<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-08_wf1_donovan.csv"))
 
-KA<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-07_wf1.1_kate.csv"))
+KA<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-08_wf1.1_kate.csv"))
 
-CWMM<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-07_sp_id_cole_maggie.csv"))
+CWMM<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-08_sp_id_cole_maggie.csv"))
 ```
+
+Now get rid of the answers columns that follow choice
+```{r}
+DS<-DS %>% select(!starts_with("answers"))
+KA<-KA %>% select(!starts_with("answers"))
+CWMM<-CWMM %>% select(!starts_with("answers"))
+```
+Now search through each DF and get rid of the columns that only contain NAs
+
+```{r}
+DS1 <- DS[, !sapply(DS, function(x)all(is.na(x))), drop=F]
+KA1 <- KA[, !sapply(KA, function(x)all(is.na(x))), drop=F]
+CWMM1 <-CWMM[, !sapply(CWMM, function(x)all(is.na(x))), drop=F]
+```
+
 Ok, now let's gather some summary information about these files.
 
 Put a place to store the info
