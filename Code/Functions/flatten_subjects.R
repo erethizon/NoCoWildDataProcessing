@@ -47,7 +47,7 @@ subjects<-DF %>%
     Phase = jstring("subject", "#phase"),
     CamNum2 = jstring(subject, CamNum),
     SDCard = jstring(subject, SD_num),
-    Forest = jstring("subject", "#forest"),
+    Forest1 = jstring("subject", "#forest"),
     Lat = jstring("subject", "#latitude"),
     Long = jstring("subject", "#longitude"),
     Treatment = jstring("subject", "#treatment"),

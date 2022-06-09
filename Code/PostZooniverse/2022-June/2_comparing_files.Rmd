@@ -15,11 +15,11 @@ library(here)
 Pull in the data files
 
 ```{r}
-DS<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-08_wf1_donovan.csv"))
+DS<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-09_wf1_donovan.csv"))
 
-KA<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-08_wf1.1_kate.csv"))
+KA<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-09_wf1.1_kate.csv"))
 
-CWMM<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-08_sp_id_cole_maggie.csv"))
+CWMM<-read.csv(here("Output", "PostZooniverse", "Flattened", "north-country-wild-classifications.6June2022_flat_2022-06-09_sp_id_cole_maggie.csv"))
 ```
 
 Now get rid of the answers columns that follow choice
@@ -27,88 +27,259 @@ Now get rid of the answers columns that follow choice
 DS<-DS %>% select(!starts_with("answers"))
 KA<-KA %>% select(!starts_with("answers"))
 CWMM<-CWMM %>% select(!starts_with("answers"))
+
+DS<-DS %>% select(!starts_with("task"))
+KA<-KA %>% select(!starts_with("task"))
+CWMM<-CWMM %>% select(!starts_with("task"))
 ```
-Now search through each DF and get rid of the columns that only contain NAs
+Check that all the column names are the same in each data frame
 
 ```{r}
-DS1 <- DS[, !sapply(DS, function(x)all(is.na(x))), drop=F]
-KA1 <- KA[, !sapply(KA, function(x)all(is.na(x))), drop=F]
-CWMM1 <-CWMM[, !sapply(CWMM, function(x)all(is.na(x))), drop=F]
+colnames(CWMM) == colnames(DS)
+colnames(DS) == colnames (KA)
+```
+Now add a column to each dataframe indicating its source (i.e the dataframe)
+```{r}
+DS$Source<-"DS"
+KA$Source<-"KA"
+CWMM$Source<-"CWMM"
+```
+Now get rid of the beta test classifications from CWMM
+
+```{r}
+beta<-which(CWMM$round1 == "beta test")
+#now delete those rows
+CWMM<-CWMM[-beta,]
+```
+Now rearrange some of the data so that we can get rid of redundant columns
+
+Duplicate types of columns = 
+round and round1
+Img1, Img2, Img3 and Img4, Img5, Img6
+CamNumber, CamNum, CamNum2
+SDNumber, SD_card_num, SDCard
+Forest and Forest1
+Event and Event1
+
+Need to check if these have data in each data frame
+```{r}
+length(unique(DS$Img1))
+length(unique(KA$Img1))
+length(unique(CWMM$Img1))
+
+length(unique(DS$Img4))
+length(unique(KA$Img4))
+length(unique(CWMM$Img4))
+```
+DS and KA have no images in Img4, Img5, Img6.
+CWMM has images in both Img1 - Img3 and Img4-Img6 this is cole's data
+
+```{r}
+Cole<-which(!is.na(CWMM$Img4))
+is.na(CWMM[Cole,]$Img1)
+CWMM[Cole,]$Img1<-CWMM[Cole,]$Img4
+CWMM[Cole,]$Img2<-CWMM[Cole,]$Img5
+CWMM[Cole,]$Img3<-CWMM[Cole,]$Img6
+Maggie<-which(is.na(CWMM$Img4))
+length(!is.na(CWMM[Maggie,]$Img1))
+length(!is.na(CWMM$Img1))
+```
+Ok, successfully  moved all images into Img1, Img2, Img3 columns so can delete Img4, Img5, Img6 from each data frame.
+
+```{r}
+CWMM<-CWMM %>% select(-c(Img4:Img6))
+DS<-DS %>% select(-c(Img4:Img6))
+KA<-KA %>% select(-c(Img4:Img6))
+```
+Now deal with round and round1
+```{r}
+which((is.na(DS$round))==TRUE)
+length(which((is.na(DS$round1))== TRUE))
+```
+DS has no values in round1
+```{r}
+which((is.na(KA$round))==TRUE)
+length(which((is.na(KA$round1))== TRUE))
+
+```
+KA has no values in round1
+
+Now check CWMM
+```{r}
+length(which((is.na(CWMM$round))))
+```
+All but one row of CWMM lack values in round
+Which row has a value?
+```{r}
+View(CWMM[(which(!is.na(CWMM$round))),])
+```
+One value from the older data set row 8368
+So, except for that row, move all of round1 into round in CWMM. Or, just reassign round = 1 to that row after moving. That would be easier.
+
+```{r}
+CWMM$round<-CWMM$round1
+CWMM$round[8368]<-1
+```
+
+Now I can get rid of round1 in all data sets
+```{r}
+CWMM<-CWMM %>% select(-round1)
+DS<-DS %>% select(-round1)
+KA<-KA %>% select(-round1)
+```
+
+Now deal with CamNumber, CamNum, CamNum2
+```{r}
+length(which(is.na(DS$CamNum)))
+length(which(is.na(DS$CamNum2)))
+
+length(which(is.na(KA$CamNum)))
+length(which(is.na(KA$CamNum2)))
+```
+Neither DS nor KA have values in CamNum or CamNum2
+
+What about CWMM
+```{r}
+length(which(is.na(CWMM$CamNumber)))
+length(which(is.na(CWMM$CamNum)))
+length(which(is.na(CWMM$CamNum2)))
+
+```
+Except for that one row (likely 8368) in CWMM, there are no data in CamNumber, but are data in both CamNum and CamNum2 that need to be moved.
+
+```{r}
+CamNum<-which(!is.na(CWMM$CamNum))
+```
+Looks like Cole's data has values in CamNum
+Move to CamNumber
+```{r}
+CWMM$CamNumber[CamNum]<-CWMM$CamNum[CamNum]
+```
+Now fix CamNum2
+```{r}
+CamNum2<-which(!is.na(CWMM$CamNum2))
+CWMM$CamNumber[CamNum2]<-CWMM$CamNum2[CamNum2]
+```
+
+Now I can get rid of CamNum and CamNum2
+```{r}
+CWMM<-CWMM %>% select(-c(CamNum, CamNum2))
+DS<-DS %>% select(-c(CamNum, CamNum2))
+KA<-KA %>% select(-c(CamNum, CamNum2))
+```
+Now deal with SD card
+```{r}
+length(which(is.na(DS$SDNumber)))
+length(which(is.na(DS$SD_card_num)))
+length(which(is.na(DS$SDCard)))
+```
+DS has no values in SD_card_num or SDCard
+```{r}
+length(which(is.na(KA$SDNumber)))
+length(which(is.na(KA$SD_card_num)))
+length(which(is.na(KA$SDCard)))
+```
+KA is missing SD card numbers for about half the observations in SDNumber but has no values in SD_card_num or SDCard so those columns can be deleted.
+
+What about CWMM?
+```{r}
+length(which(is.na(CWMM$SDNumber)))
+length(which(is.na(CWMM$SD_card_num)))
+length(which(is.na(CWMM$SDCard)))
+```
+CWMM has no values in SD card. That column can be deleted from all three data sets.Maggie's data appear not to have values in SD_card_num. So basically I need to move the values of SD_card_num into SDNumber
+```{r}
+SDfix<-which((!is.na(CWMM$SD_card_num)))
+CWMM$SDNumber[SDfix]<-CWMM$SD_card_num[SDfix]
+```
+Ok. Now delete extra SD columns
+
+```{r}
+CWMM<-CWMM %>% select(-c(SD_card_num, SDCard))
+DS<-DS %>% select(-c(SD_card_num, SDCard))
+KA<-KA %>% select(-c(SD_card_num, SDCard))
+```
+
+At this point, it might be worth adding a student to each of the data sets. I'll need to partition CWMM between Cole and Maggie.
+
+```{r}
+DS$Student<-"Donovan"
+KA$Student<-"Kate"
+CWMM$Student<-NA
+CWMM$Student[Cole]<-"Cole"
+CWMM$Student[Maggie]<-"Maggie"
+which(is.na(CWMM$Student))
+```
+Ok, now deal with forest and forest1
+```{r}
+length(which(is.na(DS$Forest)))
+length(which(is.na(DS$Forest1)))
+
+length(which(is.na(KA$Forest)))
+length(which(is.na(KA$Forest1)))
+
+```
+Neither DS nor KA have values in Forest1. Can be deleted from those two.
+Check CWMM
+
+```{r}
+length(which(is.na(CWMM$Forest)))
+length(which(is.na(CWMM$Forest1)))
+```
+Maggie's data, but not Cole's, have info in Forest1
+
+Fix that here
+```{r}
+maggie_trees<-which(!is.na(CWMM$Forest1))
+CWMM$Forest[maggie_trees]<-CWMM$Forest1[maggie_trees]
+```
+Now get rid of forest 1 from all
+```{r}
+DS<-DS %>% select(-Forest1)
+KA<-KA %>% select(-Forest1)
+CWMM<-CWMM %>% select(-Forest1)
+```
+
+Now deal with Event and Event1 by just deleting them as I don't need them.
+```{r}
+DS<-DS %>% select(-c(Event,Event1))
+KA<-KA %>% select(-c(Event,Event1))
+CWMM<-CWMM %>% select(-c(Event,Event1))
+```
+From 48 variables down to 32! 
+
+I can also delete Num, Lat, Long
+```{r}
+DS<-DS %>% select(-c(Num, Lat, Long))
+KA<-KA %>% select(-c(Num, Lat, Long))
+CWMM<-CWMM %>% select(-c(Num, Lat, Long))
+```
+Now I can save each data set and also rbind them into one data frame and save it.
+
+```{r}
+write.csv(DS, here("Output", "PostZooniverse", "Processed", "DS_workflow1.csv"))
+write.csv(KA, here("Output", "PostZooniverse", "Processed", "KA_workflow1.1.csv"))
+write.csv(CWMM, here("Output", "PostZooniverse", "Processed", "CWMM_speciesID.csv"))
+```
+And combine
+```{r}
+All<-rbind(DS,KA, CWMM)
+All<-All %>% select(-X)
+write.csv(All, here("Output", "PostZooniverse", "Processed", "all_data_to_June2022.csv"))
 ```
 
 Ok, now let's gather some summary information about these files.
-
-Put a place to store the info
-
 ```{r}
-myfiles<-c("WF1", "WF1.1", "WF_sp_id")
-Meta<-data.frame(
-  Workflow = character(3),
-  Start.date = POSIXct(3),
-  End.date = POSIXct(3),
-  Class.ID.min = numeric(3),
-  Class.ID.max = numeric(3)
+All$created_at<-ymd_hms(All$created_at)
+AllDataSummary<-All %>% group_by(Student) %>% summarize(
+  NumObs=length(subject_ids),
+  NumSubjects=length(unique(subject_ids)),
+  NumClass=length(unique(classification_id)),
+  min.class.date=min(created_at),
+  max.class.date=max(created_at)
+  
 )
-
-Meta$Workflow<-myfiles
 ```
 
-Now grab some of the information from each file:
-
-```{r}
-Meta$Start.date[1]<-min(DS$created_at)
-Meta$End.date[1]<-max(DS$created_at)
-Meta$Start.date[2]<-min(KA$created_at)
-Meta$End.date[2]<-max(KA$created_at)
-Meta$Start.date[3]<-min(CWMM$created_at)
-Meta$End.date[3]<-max(CWMM$created_at)
-
-Meta$Class.ID.min[1]<-min(DS$classification_id)
-Meta$Class.ID.max[1]<-max(DS$classification_id)
-Meta$Class.ID.min[2]<-min(KA$classification_id)
-Meta$Class.ID.max[2]<-max(KA$classification_id)
-Meta$Class.ID.min[3]<-min(CWMM$classification_id)
-Meta$Class.ID.max[3]<-max(CWMM$classification_id)
-
-
-```
-Now get rid of the beta test classifications from CWMM and then save it.
-
-```{r}
-CWMM<-CWMM %>% filter(round != "beta test")
-write.csv(CWMM, here("Output", "PostZooniverse", "Flattened", "no-co-wild-classifications.6June2022_flat_2022-06-07_sp_id_cole_maggie_no_beta_test.csv"))
-```
-How many unique subjects are there per file?
-
-```{r}
-Meta$num_subjects<-NA
-Meta$num_subjects[1]<-length(unique(DS$subject_ids))
-Meta$num_subjects[2]<-length(unique(KA$subject_ids))
-Meta$num_subjects[3]<-length(unique(CWMM$subject_ids))
-```
-Create a CamSD column for each data set and use it to calculate the number of cameras in each dataset.
-
-```{r}
-DS$CamSD<- paste0(DS$CamNum,"-",DS$SD_card_num)
-Meta$num_cams<-NA
-Meta$num_cams[1]<-length(unique(DS$CamSD))
-
-KA$CamSD<- paste0(KA$CamNum,"-",KA$SD_card_num)
-Meta$num_cams[2]<-length(unique(KA$CamSD))
-
-KA$CamSD<- paste0(KA$CamNum,"-",KA$SD_card_num)
-Meta$num_cams[2]<-length(unique(KA$CamSD))
-
-CWMM$CamSD<- paste0(CWMM$CamNum,"-",CWMM$SD_card_num)
-Meta$num_cams[3]<-length(unique(CWMM$CamSD))
-```
-Now write meta, CWMM, DS and KA for further use.
-
-```{r}
-write.csv(DS, here("Code", "PostZooniverse", "2022-June", "Data", "DS.csv"))
-write.csv(KA, here("Code", "PostZooniverse", "2022-June", "Data", "KA.csv"))
-write.csv(CWMM, here("Code", "PostZooniverse", "2022-June", "Data", "CWMM.csv"))
-write.csv(Meta, here("Code", "PostZooniverse", "2022-June", "Data", "Meta.csv"))
-```
 
 
