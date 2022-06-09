@@ -281,5 +281,7 @@ AllDataSummary<-All %>% group_by(Student) %>% summarize(
 )
 ```
 
+Ok! Now take these data and work on getting final classifications for the full data set.
+
 
 
