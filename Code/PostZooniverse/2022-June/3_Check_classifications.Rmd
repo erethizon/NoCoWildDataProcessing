@@ -12,116 +12,35 @@ library(here)
 ```
 Pull in data
 ```{r}
-CWMM<-read.csv(here("Code", "PostZooniverse","2022-June", "Data", "CWMM.csv"))
-DS<-read.csv(here("Code", "PostZooniverse","2022-June", "Data", "DS.csv"))
-KA<-read.csv(here("Code", "PostZooniverse","2022-June", "Data", "KA.csv"))
-Meta<-read.csv(here("Code", "PostZooniverse","2022-June", "Data", "Meta.csv"))
-```
-Let's reduce the dataframes to common columns, combine then and then use for analysis.
-
-```{r}
-DS$Source<-"DS"
-KA$Source<-"KA"
-CWMM$Source<-"CWMM"
-```
-Need to now get a list of the columns I want to keep from each dataset so that I can create the columns in some data sets as needed for joining later.
-
-From CWMM I want:
-subject_ids
-classification_id
-user_name
-workflow_name
-workflow_version
-choice
-created_at
-round
-Img1
-Img2
-Img3
-CamNum
-SD_card_num
-For_name
-For_type
-CamSD
-Phase
-Forest
-Treatment
-DTO
-Source
-
-
-
-Set things up for looping through each dataframe and repeating the same steps using purrr. Need to put all the dataframes into a list
-
-```{r}
-
-mydfs<-list(DS, KA, CWMM)
-#now create function that does things I need
-clean_em_up<-function(df){
- df<-df %>% select(!c(X.1, X))
-  df<-df %>% select(c(Source,subject_ids:workflow_version, choice, created_at, Img1, Img2, Img3, CamSD, For_name))
-}
-mydfs<-mydfs %>% map(clean_em_up)
- 
+df<-read.csv(here("Output", "PostZooniverse","Processed","all_data_to_June2022.csv"))
 ```
 
-Now combine those 3 list items into a single data frame using bind_rows from tidyverse
-```{r}
-All<-bind_rows(mydfs)
-```
-
-
-How many observations per subject_id?
-```{r}
-Meta$mean_obs_per_subject<- NA
-obs_per_subject<-mydfs %>% 
-  map(
-    function(df){
-      df<-df %>% group_by(subject_ids) %>% summarise(
-      obs_per_subject = length(choice)) 
-      })
-mean_ops<-obs_per_subject %>% map(
-  function(df){
-    df<-df %>% select(obs_per_subject)
-    mean_ops<-mean(df$obs_per_subject, na.rm = T)
-    
-    })
-Meta$mean_obs_per_subject<-mean_ops %>% map(pluck,1)
-
-```
 What is the range in number of classifications per subject id?
 ```{r}
-Meta$min_obs_per_subject<- NA
-obs_per_subject<-mydfs %>% 
-  map(
-    function(df){
-      df<-df %>% group_by(subject_ids) %>% summarise(
-      obs_per_subject = length(choice)) 
-      })
-min_ops<-obs_per_subject %>% map(
-  function(df){
-    df<-df %>% select(obs_per_subject)
-    min_ops<-min(df$obs_per_subject, na.rm = T)
-    
-    })
-Meta$min_obs_per_subject<-min_ops %>% map(pluck,1)
+Class_summary<-df %>% group_by(Student, subject_ids) %>% summarise(
+  NumClass=length(classification_id)
+)
 
-
-Meta$max_obs_per_subject<- NA
-obs_per_subject<-mydfs %>% 
-  map(
-    function(df){
-      df<-df %>% group_by(subject_ids) %>% summarise(
-      obs_per_subject = length(choice)) 
-      })
-max_ops<-obs_per_subject %>% map(
-  function(df){
-    df<-df %>% select(obs_per_subject)
-    max_ops<-max(df$obs_per_subject, na.rm = T)
-    
-    })
-Meta$max_obs_per_subject<-max_ops %>% map(pluck,1)
+length(unique(df$subject_ids))
 ```
+There are 15,344 subjects in the dataset
+
+How many classifications?
+```{r}
+length(unique(df$classification_id))
+```
+There are a few classifications (83724-83387 = 337) that appear more than once. Why?
+
+Let's look at them.
+
+```{r}
+df<-df %>% group_by(classification_id) %>% mutate(
+  dupe = n()> 1)
+ungroup(df)
+check<-df %>% filter(dupe == TRUE)
+```
+So there are 337 cases in which there was > 1 animal observed in the subject. Cool. Looks good.
+
 
 Now see if I can join the date-time of each object for each image from the camera exif data. I created a master DTO sheet to attempt with.
 
@@ -130,10 +49,10 @@ Read in the exif data
 exif<-read.csv(here("Data", "masterDTO.csv"))
 exif$FileName2<-exif$FileName
 ```
-Now try to join to All
+Now try to join to df
 
 ```{r}
-Main<-left_join(All, exif, by = c("Img1" = "FileName2"))
+Main<-left_join(df, exif, by = c("Img1" = "FileName2"))
 ```
 Now dump some columns to make it easier to look at
 ```{r}
@@ -145,11 +64,131 @@ Main<-Main %>% relocate(CamSD.y, .after = CamSD.x)
 Main<-Main %>% relocate(DateTimeOriginal,.before = created_at)
 Main<-Main %>% relocate(FileName, .before = user_name)
 ```
-Now I can also look at which workflows were associated with which batches of pictures. To do so, I'm going to get sub-dataframes from Main that correspond to year and Round
+
+When I was working with this before, I was losing some of the info from maggie's data. Take a look:
 
 ```{r}
-unique(Main$Year)
+Main %>% filter(Student == "Maggie") %>% View()
+
 ```
+Why is there one row in Maggie's data that looks like it is from a different dataset?  Check it out
+
+```{r}
+Main %>% filter(FileName == "14_22_DON_000031.JPG") %>% View()
+```
+
+For some reason it was classified again in Maggie's protocol - but we don't need it there, so I'm going to delete the one instance of it that corresponds to Maggie's data.
+```{r}
+find<-which(Main$FileName == "14_22_DON_000031.JPG" & Main$Student == "Maggie")
+Main<-Main[-c(find),]
+```
+Now move workflow ID next to workflow version
+```{r}
+Main <-Main %>% relocate(workflow_id, .after = workflow_name)
+```
+
+Ok, now let's see if we can get all the forest names the same
+```{r}
+unique(Main$Forest)
+```
+Ok, let's do full forest names
+
+```{r}
+don<-which(Main$Forest == "DON")
+Main$Forest[don]<-"Donnerville"
+deg<-which(Main$Forest == "DEG")
+Main$Forest[deg]<-"Degrasse"
+
+bc<-which(Main$Forest == "BC")
+Main$Forest[bc]<-"Beaver Creek"
+
+sh<-which(Main$Forest == "SH")
+Main$Forest[sh]<-"South Hammond"
+
+wf<-which(Main$Forest == "WF")
+Main$Forest[wf]<-"Whisky Flats"
+
+whip<-which(Main$Forest == "WHIP" |Main$Forest == "Whip")
+Main$Forest[whip]<-"Whippoorwill"
+
+unique(Main$Forest)
+```
+Now fix round numbers
+```{r}
+unique(Main$round)
+```
+Make them all R1 or R2
+```{r}
+r1<-which(Main$round == "1")
+Main$round[r1]<- "R1"
+
+r2<-which(Main$round == "2")
+Main$round[r2]<- "R2"
+
+unique(Main$round)
+```
+Check more vars
+```{r}
+unique(Main$batch) #ok
+unique(Main$CamNumber)
+```
+Find the cam nums that begin with "C"
+```{r}
+fix<-which(str_detect(Main$CamNumber, "C"))
+View(Main[fix,])
+#now pull the C off
+
+Main$CamNumber[fix]<-str_replace(Main$CamNumber[fix], "C0", "0")
+#now get rid of leading zeros
+Main$CamNumber[fix]<-str_remove(Main$CamNumber[fix], "^0+")
+Main$CamNumber<-as.numeric(Main$CamNumber)
+Main$CamSD.z<-paste0(Main$CamNumber,"-", Main$SDNumber)
+Main<-Main %>% relocate(CamSD.z, .after = CamSD.y)
+```
+Now forest type
+```{r}
+unique(Main$For_type)
+fixpines<-which(Main$For_type == "Pine ")
+Main$For_type[fixpines]<-"Pine"
+fixdecid<-which(Main$For_type == "Deciduous ")
+Main$For_type[fixdecid]<-"Deciduous"
+unique(Main$For_type)
+```
+Fix phase - combine phase 1 batch 1 and phase 1 batch 2 as "experiment"
+
+```{r}
+exp<-which(Main$Phase == "phase 1 batch 1"| Main$Phase == "phase 1 batch 2")
+
+Main$Phase[exp]<-"experiment"
+unique(Main$Phase)
+```
+check Treatment
+```{r}
+unique(Main$Treatment)
+```
+Need to combine Snap and Snapshot
+```{r}
+snap<-which(Main$Treatment == "Snap")
+Main$Treatment[snap]<-"Snapshot"
+unique(Main$Treatment)
+```
+Now check Round
+```{r}
+unique(Main$Round)
+```
+That's fine.
+Now move Cam_SD next to CamSD.z, Cam and SD after CamNumber, SDNumber
+```{r}
+Main<-Main %>% relocate(Cam_SD, .after = CamSD.z)
+Main<-Main %>% relocate(Cam, .after = SDNumber) %>% relocate(SD, .after = Cam)
+Main<-Main %>% relocate(Round, .after = round) %>% relocate(Year, .after = DTO) %>% relocate(Model, .after =CamMod) %>% relocate(dupe, .after = retire.date)
+Main<-Main %>% select(-X)
+```
+
+
+
+
+
 
 
 
