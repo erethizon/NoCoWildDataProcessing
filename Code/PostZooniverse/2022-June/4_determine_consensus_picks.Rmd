@@ -1,0 +1,259 @@
+---
+title: "Consensus picks"
+output: html_notebook
+---
+
+Once we have flattened all of our data, we need to examine it to determine the consensus species ID for each event.
+
+We need to know the following:
+
+1. For how many subject ids were all of the choices the same (i.e. all classifiers identified the same species)?
+  * What was the chosen species for each of these subject ids?
+
+
+2. For which subject_ids were there discrepancies in what the species_id was?
+  * How many of these subject_ids were there?
+
+3. For which subject_ids were there more than one species present in the set of photos?
+  * We'll see below that these are the cases in which num_votes > num_class
+  * Are there discrepancies in what species are indicated as present? How will we reconcile them?
+
+## Set up the workspace and read in the data
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(here)
+```
+Pull in the master classification file
+
+```{r}
+df<-read.csv(here("Output", "PostZooniverse", "Processed", "master_class_file_to_June2022.csv"))
+df<-df %>% select(-X)
+```
+
+
+Summarize the data to see the number of distinct subjects (events) and the number of distinct classifications in the data set. 
+```{r}
+df %>% summarise(n_distinct(subject_ids), n_distinct(classification_id)) 
+```
+Create a new column that has a count of how many unique classifications were made.
+
+```{r}
+df<-df %>% 
+     group_by(subject_ids) %>% # count up the number of distinct classification IDs
+     mutate( 
+            num_class = n_distinct(classification_id),
+            num_diff_species = n_distinct(choice)) %>% #because there will be >1 row per classification_id if >1 spp
+     arrange(subject_ids, classification_id) 
+df %>% View
+unique(df$num_diff_species)
+unique(df$num_class)
+```
+Some were classified over and over again, which is fine.
+
+
+Now arrange in descending order of the number of species detected.
+
+```{r} 
+df %>% arrange(desc(num_diff_species), subject_ids) %>% View()
+```
+Let's look at a histogram of that
+
+```{r}
+ggplot(df, aes(num_diff_species))+
+  geom_histogram()
+```
+Good - mostly 1 or 2 species detected.
+
+Now that we know the number of species identified per subject id, we need a way to  determine the consensus species for each subject id. First we'll write some code to check the species counts per subject id and classification id.
+
+## Subject-level metrics
+Generate some information about each subject_id
+```{r}
+subject_metrics <- df %>% ungroup %>%
+     group_by(subject_ids) %>%
+     mutate(num_votes = n(), # if a  user ids >1 spp, there will be more votes than classifications
+            ) 
+#range in number of votes
+unique(subject_metrics$num_votes)
+```
+Something funny is going on - there are a number of instances in which there are exactly twice as many votes as classifications, even when there is only one species detected in all of the classifications. Let's figure that out.
+
+Find the rows for which the number of votes is 2x number of classifications
+```{r}
+double_votes<-subject_metrics %>% filter(num_votes == 2*num_class)
+```
+It looks like the doubles have two different rounds and date/time originals, which suggests something went wonky when I joined the exif data. Going back to `3_Check_classifications.Rmd` to see.
+
+
+Now look at species-level metrics
+
+```{r}
+species_counts <- df %>% ungroup %>%
+     group_by(subject_ids, classification_id) %>%
+     summarise(
+       total_spp_by_user = mean(num_diff_species)) %>% #Need to select only one row per classification_id, then summarise across those. 
+     summarise(., agg_num_species = round(median(total_spp_by_user), 0))#aggregate species count, which is median rounded up
+     glimpse(species_counts)
+     
+#species counts gives a list by subject_id of the number of species identified by the different classifiers.
+```
+Now get the cleaned classifications
+```{r}
+cleaned_classifications <- left_join(subject_metrics, species_counts) %>% ungroup
+glimpse(cleaned_classifications)
+```
+
+## Species level metrics
+```{r}
+grouped_classifications <- cleaned_classifications %>% 
+      group_by(subject_ids, num_class, num_votes, agg_num_species, num_diff_species, choice) # fields at subject level or higher
+```
+
+#Tally the votes for each species ID'd within a subject
+This yields species_votes, which tells us, for each subject_id, the number of classifications and the proportion of the vote received by each species for each subject_id. We can use this to run a list of subjects for which we need to go back and confirm the species.
+```{r}
+species_votes <- grouped_classifications %>% 
+     # for every species within a subject, aggregate votes.
+     summarise(., votes = n_distinct(classification_id),
+               ) %>% #count up the number of votes per species choice
+     mutate(propvote = votes/sum(votes), #calculate proportion of votes for this species
+            propclass = votes/num_class) 
+```
+
+When num_votes > num_class you have a situation where there was more than one species detected in an event (typically Gus and one or more camera trappers.). In these cases, propvote will not equal propclass, and the sum of propclass for that subject id will be greater than 1.0 (though the sum of propvote will be equal to 1.)
+
+```{r}
+MoreThan1<-species_votes %>% filter(num_votes > num_class)
+```
+They each show the same subject_ids so things look good.
+
+Let's filter species_votes to extract the subjects for which there is more than 1 species but the number of votes = num_class. These will be the cases in which there is one species in the event but there is a discrepancy about what the species is.
+
+```{r}
+subjects_to_check<-species_votes %>% filter(num_votes == num_class & num_diff_species > 1)
+
+```
+Now we want to filter out the cases for which propvote = propclass and propclass is 0.8 or greater or 0.2 or smaller.
+
+```{r}
+species_votes_to_check<- subjects_to_check %>% filter((propvote == propclass) & (between(propclass, 0.21, 0.79)))
+```
+Now get the list of the subject ids in species_votes_to_check and use it to filter cleaned_classifications to get the list of subjects, images, events etc. to check.
+
+```{r}
+subjects_to_filter<-unique(species_votes_to_check$subject_ids)
+```
+
+
+And now filter cleaned_classifications by those data
+
+```{r}
+filesToCheck<-filter(cleaned_classifications, subject_ids %in% subjects_to_filter)
+```
+And now summarize
+```{r}
+filesToCheck<-filesToCheck %>% group_by(subject_ids) %>% summarize(
+  Event = Event,
+  Img1 = Img,
+  Img2 = Imj2,
+  Img3 = Img3,
+  round = round,
+  CamNum = CamNum,
+  SD_card = SD_card_num
+)
+```
+Now loop through filesToCheck to grab just the first instance of each subject id and associated variables.  
+
+Make data frame to put results in 
+```{r}
+Subjects<-unique(filesToCheck$subject_ids)
+
+Checklist<-data.frame(subject_ids = integer(255),
+                      Event = integer(255), 
+                      Img1 = character(255), 
+                      Img2 = character(255), 
+                      Img3 = character(255),
+                      round = character (255),
+                      CamNum = integer(255), 
+                      SD_card = integer(255))
+```
+Now loop
+```{r}
+for(i in 1:length(Subjects)){
+  mySample<-filter(filesToCheck, subject_ids == Subjects[i])
+  Checklist$subject_ids[i]<-Subjects[i]
+  Checklist$Event[i]<-unique(mySample$Event)
+  Checklist$Img1[i]<-unique(mySample$Img1)
+  Checklist$Img2[i]<-unique(mySample$Img2)
+  Checklist$Img3[i]<-unique(mySample$Img3)
+  Checklist$round[i]<-unique(mySample$round)
+  Checklist$CamNum[i]<-unique(mySample$CamNum)
+  Checklist$SD_card[i]<-unique(mySample$SD_card)
+}
+```
+Now save
+
+```{r}
+write.csv(Checklist, "files_to_check_no_beta_test.csv")
+```
+
+Now we need to assign the correct species for the files that we are not checking:
+Extract from cleaned classifications all of the subject ids that are NOT part of the list that needs to be checked:
+
+```{r}
+Subjects_to_keep<-species_votes %>% filter(propvote >= 0.8)
+Subjects_to_keep <-Subjects_to_keep$subject_ids
+
+
+NeedAssignment<-cleaned_classifications %>% filter(subject_ids %in% Subjects_to_keep)
+```
+Now create data frame to accept final assignments
+
+```{r}
+Assigned<-data.frame(subject_ids = integer(length(Subjects_to_keep)),
+                Event = integer(length(Subjects_to_keep)),
+                Img1 = character(length(Subjects_to_keep)), 
+                Img2 = character(length(Subjects_to_keep)),
+                Img3 = character(length(Subjects_to_keep)),
+                round = character (length(Subjects_to_keep)),
+                CamNum = integer(length(Subjects_to_keep)), 
+                SD_card = integer(length(Subjects_to_keep)),
+                choice = character (length(Subjects_to_keep)))
+```
+Now loop
+```{r}
+NeedAssignment$choice<-as.character(NeedAssignment$choice)
+for(i in 1:length(Subjects_to_keep)){
+  mySample<-filter(NeedAssignment, subject_ids == Subjects_to_keep[i])
+
+  Assigned$subject_ids[i]<-Subjects_to_keep[i]
+  Assigned$Event[i]<-unique(mySample$Event)
+  Assigned$Img1[i]<-unique(mySample$Imj1)
+  Assigned$Img2[i]<-unique(mySample$Imj2)
+   
+  Assigned$Img3[i]<-unique(mySample$Img3)
+  
+  Assigned$round[i]<-unique(mySample$round)
+ 
+  Assigned$CamNum[i]<-unique(mySample$CamNum)
+  
+  Assigned$SD_card[i]<-unique(mySample$SD_card_num)
+  
+  Assigned$choice[i]<-unique(mySample$choice[1])
+ 
+}
+```
+Now save
+
+```{r}
+write.csv(Assigned, "AssignedSpecies_no_beta_test.csv")
+```
+
+
+
+
+
+
+
+

@@ -28,6 +28,7 @@ There are 15,344 subjects in the dataset
 How many classifications?
 ```{r}
 length(unique(df$classification_id))
+n_distinct(df$classification_id)
 ```
 There are a few classifications (83724-83387 = 337) that appear more than once. Why?
 
@@ -49,7 +50,6 @@ Read in the exif data
 exif<-read.csv(here("Data", "masterDTO.csv"))
 exif$FileName2<-exif$FileName
 ```
-Now try to join to df
 
 ```{r}
 Main<-left_join(df, exif, by = c("Img1" = "FileName2"))
@@ -172,18 +172,129 @@ snap<-which(Main$Treatment == "Snap")
 Main$Treatment[snap]<-"Snapshot"
 unique(Main$Treatment)
 ```
-Now check Round
-```{r}
-unique(Main$Round)
-```
-That's fine.
+
 Now move Cam_SD next to CamSD.z, Cam and SD after CamNumber, SDNumber
 ```{r}
 Main<-Main %>% relocate(Cam_SD, .after = CamSD.z)
 Main<-Main %>% relocate(Cam, .after = SDNumber) %>% relocate(SD, .after = Cam)
-Main<-Main %>% relocate(Round, .after = round) %>% relocate(Year, .after = DTO) %>% relocate(Model, .after =CamMod) %>% relocate(dupe, .after = retire.date)
+Main<-Main  %>% relocate(Year, .after = DTO) %>% relocate(Model, .after =CamMod) %>% relocate(dupe, .after = retire.date)
 Main<-Main %>% select(-X)
 ```
+How many subjects were not fully classified on zooniverse?
+
+```{r}
+Unclassed<-Main %>% filter(is.na(class.count))
+```
+Basically, Donovan's data were uploaded to zooniverse but not completely classified in the workflow. Are there any images from Donovan's data set that don't also appear elsewhere?
+
+To check, subtract Donovan's from Main (= Unclassed) and then make a dataset that just includes classified images.
+
+```{r}
+Classed<-Main %>% filter(!is.na(class.count))
+```
+Now see how many of the subject ids from Unclassed are in Classed
+```{r}
+InBoth<-which(Unclassed$subject_ids %in% Classed$subject_ids)
+unique(Classed$Student)
+```
+All of the data from Donovan's subset are already present in Kates' so I'm going to delete them from Main.
+
+```{r}
+dump<-which(Main$Student == "Donovan")
+Main<-Main[-dump,]
+```
+
+Ok, now take a look at some of the descriptive stats again
+
+What is the range in number of classifications per subject id?
+```{r}
+Class_summary<-Main %>% group_by(Student, subject_ids) %>% summarise(
+  NumClass=length(classification_id)
+)
+
+length(unique(df$subject_ids))
+```
+There are 15,344 subjects in the dataset
+
+How many classifications?
+```{r}
+length(unique(Main$classification_id))
+n_distinct(Main$classification_id)
+```
+
+```{r}
+Main<-Main %>% group_by(classification_id) %>% mutate(
+  dupe = n()> 1)
+ungroup(Main)
+check<-Main %>% filter(dupe == TRUE)
+```
+So there is a subset of images for which the date time original is different for the same image (not possible)-perhaps a problem in the exif data?
+
+Take a look
+```{r}
+exif %>% group_by(CamSD) %>% summarise(
+  numYears = n_distinct(Year),
+) %>% View()
+```
+Each CamSD was only present in a single year. So that's good.
+
+```{r}
+CheckDTO<-Main %>% group_by(subject_ids,classification_id ) %>% summarise(
+  num_DTOs = n_distinct(DateTimeOriginal)
+)
+
+#grab subject and classification ids for those with > 1 date
+
+weird_dates<-CheckDTO %>% filter(num_DTOs > 1)
+```
+There are 229 observations for which a combination of subject_id and classification_id had more than one date. Let's look at them from Main
+
+```{r}
+fixDates<-Main %>% filter(subject_ids %in% weird_dates$subject_ids & classification_id %in% weird_dates$classification_id) 
+```
+There are 458 rows (which makes sense - 229*2). Let's see what we can about them.
+
+```{r}
+unique(fixDates$Student)
+```
+They all come from Kate's dataset. Let's look at which files have two different date times in exif.
+
+```{r}
+bad_exif<-exif %>% group_by(FileName) %>% summarise(
+  numDTO = n_distinct(DateTimeOriginal)
+)
+var<-bad_exif %>% filter(numDTO > 1)
+check<-exif %>% filter(FileName %in% var$FileName)
+```
+Ok! Looked on disc, and these are situations where there were pictures with the same file name but different dates - so these are in fact NOT the same subjects. How to fix?
+
+I'm going to add a column called "new_sub_id" which will be the original subject ID for all but the second batch of images (from Round 3) which will get a "-3" added to the subject id
+
+```{r}
+Main <- Main %>% mutate(
+  new_sub_id = subject_ids
+)
+Main<-Main %>% relocate(new_sub_id, .after = subject_ids)
+```
+Now figure out the subject_ids that need an added indicator. It is all the ones in fixDates with Round = 3.
+
+Let's see if we can find them in Main
+```{r}
+fix<-which(Main$subject_ids %in% fixDates$subject_ids & Main$classification_id %in% fixDates$classification_id & Main$Round == 3)
+```
+229 rows long.  Good! Now fix those subject_ids
+
+```{r}
+Main$new_sub_id[fix]<-paste0(Main$subject_ids[fix],"-", Main$Round[fix])
+```
+Great! That fixed it. Now I can save this as the master data set.
+
+And I think we've got it!  Let's save this as the master up through June, 2022.
+
+```{r}
+write.csv(Main, here("Output", "PostZooniverse","Processed", "master_class_file_to_June2022.csv"))
+```
+
 
 
 
