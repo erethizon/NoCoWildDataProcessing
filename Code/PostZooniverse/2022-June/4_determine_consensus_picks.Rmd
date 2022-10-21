@@ -34,17 +34,17 @@ df<-df %>% select(-X)
 
 Summarize the data to see the number of distinct subjects (events) and the number of distinct classifications in the data set. 
 ```{r}
-df %>% summarise(n_distinct(subject_ids), n_distinct(classification_id)) 
+df %>% summarise(n_distinct(new_sub_id), n_distinct(classification_id)) 
 ```
 Create a new column that has a count of how many unique classifications were made.
 
 ```{r}
 df<-df %>% 
-     group_by(subject_ids) %>% # count up the number of distinct classification IDs
+     group_by(new_sub_id) %>% # count up the number of distinct classification IDs
      mutate( 
             num_class = n_distinct(classification_id),
             num_diff_species = n_distinct(choice)) %>% #because there will be >1 row per classification_id if >1 spp
-     arrange(subject_ids, classification_id) 
+     arrange(new_sub_id, classification_id) 
 df %>% View
 unique(df$num_diff_species)
 unique(df$num_class)
@@ -55,7 +55,7 @@ Some were classified over and over again, which is fine.
 Now arrange in descending order of the number of species detected.
 
 ```{r} 
-df %>% arrange(desc(num_diff_species), subject_ids) %>% View()
+df %>% arrange(desc(num_diff_species), new_sub_id) %>% View()
 ```
 Let's look at a histogram of that
 
@@ -70,27 +70,26 @@ Now that we know the number of species identified per subject id, we need a way 
 ## Subject-level metrics
 Generate some information about each subject_id
 ```{r}
-subject_metrics <- df %>% ungroup %>%
-     group_by(subject_ids) %>%
+df <- df %>% ungroup %>%
+     group_by(new_sub_id) %>%
      mutate(num_votes = n(), # if a  user ids >1 spp, there will be more votes than classifications
             ) 
 #range in number of votes
-unique(subject_metrics$num_votes)
+unique(df$num_votes)
 ```
-Something funny is going on - there are a number of instances in which there are exactly twice as many votes as classifications, even when there is only one species detected in all of the classifications. Let's figure that out.
+
 
 Find the rows for which the number of votes is 2x number of classifications
 ```{r}
-double_votes<-subject_metrics %>% filter(num_votes == 2*num_class)
+double_votes<-df %>% filter(num_votes == 2*num_class)
 ```
-It looks like the doubles have two different rounds and date/time originals, which suggests something went wonky when I joined the exif data. Going back to `3_Check_classifications.Rmd` to see.
-
+All the double_votes are cases where more than one species was detected in the subject set - which is good.
 
 Now look at species-level metrics
 
 ```{r}
 species_counts <- df %>% ungroup %>%
-     group_by(subject_ids, classification_id) %>%
+     group_by(new_sub_id, classification_id) %>%
      summarise(
        total_spp_by_user = mean(num_diff_species)) %>% #Need to select only one row per classification_id, then summarise across those. 
      summarise(., agg_num_species = round(median(total_spp_by_user), 0))#aggregate species count, which is median rounded up
@@ -100,14 +99,14 @@ species_counts <- df %>% ungroup %>%
 ```
 Now get the cleaned classifications
 ```{r}
-cleaned_classifications <- left_join(subject_metrics, species_counts) %>% ungroup
+cleaned_classifications <- left_join(df, species_counts) %>% ungroup
 glimpse(cleaned_classifications)
 ```
 
 ## Species level metrics
 ```{r}
 grouped_classifications <- cleaned_classifications %>% 
-      group_by(subject_ids, num_class, num_votes, agg_num_species, num_diff_species, choice) # fields at subject level or higher
+      group_by(new_sub_id, num_class, num_votes, agg_num_species, num_diff_species, choice) # fields at subject level or higher
 ```
 
 #Tally the votes for each species ID'd within a subject
@@ -119,8 +118,9 @@ species_votes <- grouped_classifications %>%
                ) %>% #count up the number of votes per species choice
      mutate(propvote = votes/sum(votes), #calculate proportion of votes for this species
             propclass = votes/num_class) 
-```
 
+#propvote will not equal propclass when the total number of votes is different than the total number of classifications. The number of votes exceeds the number of classifications when there is more than one species in a subject set (e.g. dog + human.)
+```
 When num_votes > num_class you have a situation where there was more than one species detected in an event (typically Gus and one or more camera trappers.). In these cases, propvote will not equal propclass, and the sum of propclass for that subject id will be greater than 1.0 (though the sum of propvote will be equal to 1.)
 
 ```{r}
@@ -134,126 +134,426 @@ Let's filter species_votes to extract the subjects for which there is more than 
 subjects_to_check<-species_votes %>% filter(num_votes == num_class & num_diff_species > 1)
 
 ```
-Now we want to filter out the cases for which propvote = propclass and propclass is 0.8 or greater or 0.2 or smaller.
+Now let's look at the distribution of classifications among subjects. 
 
 ```{r}
-species_votes_to_check<- subjects_to_check %>% filter((propvote == propclass) & (between(propclass, 0.21, 0.79)))
+summary_class<-species_votes %>% ungroup %>% group_by(new_sub_id) %>% summarise(
+  num_class = max(num_class)
+)
+
+ggplot(summary_class, aes(num_class))+
+  geom_histogram()
+
+table(summary_class$num_class)
 ```
-Now get the list of the subject ids in species_votes_to_check and use it to filter cleaned_classifications to get the list of subjects, images, events etc. to check.
+There are 30 classifications that were only looked at once or twice, and an additional 511 that were only looked at 3 times. I should go through all of those by hand. And perhaps also the 553 that were looked at only 4 times. Let's set them aside in a list
 
 ```{r}
-subjects_to_filter<-unique(species_votes_to_check$subject_ids)
+too_few<-filter(summary_class, num_class <= 4)
+not_classed<-species_votes %>% filter(new_sub_id %in% too_few$new_sub_id)
+```
+
+Now we want to filter out the cases for which propvote = propclass and propclass is 0.8 or greater or 0.2 or smaller. But we don't want to include the cases in which there weren't enough classifications (which would have an inflated propvote/propclass, e.g. if there is only 1 classfication, propvote = 1.0)
+
+```{r}
+#step 1 - Remove the not_classed from subjects_to_check
+do_not_include<-which(subjects_to_check$new_sub_id %in% not_classed$new_sub_id)
+classed_to_check<-subjects_to_check[-do_not_include,]
+#step 2 - filter out those cases with high or low propvote
+species_votes_to_check<-classed_to_check %>% filter((propvote == propclass) & (between(propclass, 0.21, 0.79)))
+
+```
+
+now combine not_classed with species_votes_to_check and then remove duplicates.
+
+```{r}
+need_checking<-rbind(not_classed, species_votes_to_check)
+#remove duplicates
+need_checking <- distinct(need_checking)
+```
+
+Now get the list of the subject ids in need_checking and use it to filter cleaned_classifications to get the list of subjects, images, events etc. to check.
+
+```{r}
+subjects_to_filter<-unique(need_checking$new_sub_id)
 ```
 
 
 And now filter cleaned_classifications by those data
 
 ```{r}
-filesToCheck<-filter(cleaned_classifications, subject_ids %in% subjects_to_filter)
+filesToCheck<-filter(cleaned_classifications, new_sub_id %in% subjects_to_filter)
 ```
 And now summarize
 ```{r}
-filesToCheck<-filesToCheck %>% group_by(subject_ids) %>% summarize(
-  Event = Event,
-  Img1 = Img,
-  Img2 = Imj2,
+filesToCheck<-filesToCheck %>% group_by(new_sub_id) %>% summarize(
+  workflow_name = workflow_name,
+  workflow_version = workflow_version,
+  Img1 = Img1,
+  Img2 = Img2,
   Img3 = Img3,
+  DateTimeOriginal = DateTimeOriginal,
   round = round,
-  CamNum = CamNum,
-  SD_card = SD_card_num
+  Round = Round,
+  Forest = Forest,
+  CamNumber = CamNumber,
+  SDNumber = SDNumber,
+  Cam = Cam,
+  SD = SD,
+  Year = Year,
+  Student = Student
 )
 ```
 Now loop through filesToCheck to grab just the first instance of each subject id and associated variables.  
 
 Make data frame to put results in 
 ```{r}
-Subjects<-unique(filesToCheck$subject_ids)
+Subjects<-unique(filesToCheck$new_sub_id)
 
-Checklist<-data.frame(subject_ids = integer(255),
-                      Event = integer(255), 
-                      Img1 = character(255), 
-                      Img2 = character(255), 
-                      Img3 = character(255),
-                      round = character (255),
-                      CamNum = integer(255), 
-                      SD_card = integer(255))
+Checklist<-data.frame(new_sub_id = character(length(Subjects)),
+                      workflow_name = character(length(Subjects)),
+                      workflow_version = numeric(length(Subjects)),
+                      Img1 = character(length(Subjects)), 
+                      Img2 = character(length(Subjects)), 
+                      Img3 = character(length(Subjects)),
+                      DateTimeOriginal = character(length(Subjects)),
+                      round = character(length(Subjects)),
+                      Round = character(length(Subjects)),
+                      Forest = character(length(Subjects)),
+                      CamNumber = integer(length(Subjects)),
+                      SDNumber = integer(length(Subjects)),
+                      Cam = integer(length(Subjects)),
+                      SD = integer(length(Subjects)),
+                      Year = integer(length(Subjects)),
+                      Student = character(length(Subjects)))
 ```
 Now loop
 ```{r}
 for(i in 1:length(Subjects)){
-  mySample<-filter(filesToCheck, subject_ids == Subjects[i])
-  Checklist$subject_ids[i]<-Subjects[i]
-  Checklist$Event[i]<-unique(mySample$Event)
+  mySample<-filter(filesToCheck, new_sub_id == Subjects[i])
+  Checklist$new_sub_id[i]<-Subjects[i]
+  Checklist$workflow_name[i]<-unique(mySample$workflow_name)
+  Checklist$workflow_version[i]<-unique(mySample$workflow_version)
   Checklist$Img1[i]<-unique(mySample$Img1)
   Checklist$Img2[i]<-unique(mySample$Img2)
   Checklist$Img3[i]<-unique(mySample$Img3)
+  Checklist$DateTimeOriginal[i]<-unique(mySample$DateTimeOriginal)
   Checklist$round[i]<-unique(mySample$round)
-  Checklist$CamNum[i]<-unique(mySample$CamNum)
-  Checklist$SD_card[i]<-unique(mySample$SD_card)
+  Checklist$Round[i]<-unique(mySample$Round)
+  Checklist$Forest[i]<-unique(mySample$Forest)
+  Checklist$CamNumber[i]<-unique(mySample$CamNumber)
+  Checklist$SDNumber[i]<-unique(mySample$SDNumber)
+  Checklist$Cam[i]<-unique(mySample$Cam)
+  Checklist$SD[i]<-unique(mySample$SD)
+  Checklist$Year[i]<-unique(mySample$Year)
+  Checklist$Student[i]<-unique(mySample$Student)
 }
 ```
+Add column for assigning the choice
+```{r}
+Checklist$choice<-NA
+Checklist<-Checklist %>% relocate(choice, .after = Img3)
+```
+
 Now save
 
 ```{r}
-write.csv(Checklist, "files_to_check_no_beta_test.csv")
+write.csv(Checklist, here("Output", "PostZooniverse", "master_files_to_checkJune2022.csv"))
 ```
 
 Now we need to assign the correct species for the files that we are not checking:
 Extract from cleaned classifications all of the subject ids that are NOT part of the list that needs to be checked:
 
 ```{r}
-Subjects_to_keep<-species_votes %>% filter(propvote >= 0.8)
-Subjects_to_keep <-Subjects_to_keep$subject_ids
-
-
-NeedAssignment<-cleaned_classifications %>% filter(subject_ids %in% Subjects_to_keep)
+Subjects_to_keep<-species_votes %>% filter(propvote >= 0.8 & num_class > 4)
 ```
+Now see if there are any of the subject ids from Checklist left in Subjects_to_keep
+
+```{r}
+check<-which(Subjects_to_keep$new_sub_id %in% Checklist$new_sub_id)
+```
+No - so that's good!
+
+
+```{r}
+NeedAssignment<- cleaned_classifications %>% filter(new_sub_id %in% Subjects_to_keep$new_sub_id)
+
+
+NeedAssignSummary<-NeedAssignment %>% group_by(new_sub_id) %>% summarise(
+  num_class = n_distinct(classification_id),
+  num_species = n_distinct(choice)
+)
+```
+A subset have more than 1 species - these are likely the instances in which there were > 1 species in the event. Let's take a look.
+
+
+```{r}
+check<-NeedAssignSummary %>% filter(num_species > 1)
+MoreThan1<-NeedAssignment %>% filter(new_sub_id %in% check$new_sub_id)
+```
+Many have more than 1, but they all have a majority of one species, so we want to choose that species. We could order the data by subject_id and then prop_vote(if we connect it) and then choose the one for which propvote > 0.8.
+
+Let's see.
+
+```{r}
+NeedAssignment<-left_join(NeedAssignment, Subjects_to_keep)
+NeedAssignment<-NeedAssignment %>% arrange(new_sub_id, propvote)
+```
+
+
+Now let's clean up the environment - overwhelming
+```{r}
+rm(double_votes, grouped_classifications, MoreThan1, mySample, need_checking, not_classed, species_counts, species_votes, species_votes_to_check, subjects_to_check, summary_class, too_few, Subjects, subjects_to_filter)
+
+```
+
 Now create data frame to accept final assignments
 
 ```{r}
-Assigned<-data.frame(subject_ids = integer(length(Subjects_to_keep)),
-                Event = integer(length(Subjects_to_keep)),
-                Img1 = character(length(Subjects_to_keep)), 
-                Img2 = character(length(Subjects_to_keep)),
-                Img3 = character(length(Subjects_to_keep)),
-                round = character (length(Subjects_to_keep)),
-                CamNum = integer(length(Subjects_to_keep)), 
-                SD_card = integer(length(Subjects_to_keep)),
-                choice = character (length(Subjects_to_keep)))
+how_long<-n_distinct(NeedAssignment$new_sub_id)
+Assigned<-data.frame(new_sub_id = character(how_long),
+                     workflow_name = character(how_long),
+                     workflow_version = numeric(how_long),
+                      Img1 = character(how_long), 
+                      Img2 = character(how_long), 
+                      Img3 = character(how_long),
+                      choice = character(how_long),
+                     DateTimeOriginal = character(how_long),
+                      round = character(how_long),
+                      Round = character(how_long),
+                     Forest = character(how_long),
+                      CamNumber = integer(how_long),
+                      SDNumber = integer(how_long),
+                      Cam = integer(how_long),
+                      SD = integer(how_long),
+                      Year = integer(how_long),
+                      Student = character(how_long))
+
 ```
 Now loop
 ```{r}
-NeedAssignment$choice<-as.character(NeedAssignment$choice)
-for(i in 1:length(Subjects_to_keep)){
-  mySample<-filter(NeedAssignment, subject_ids == Subjects_to_keep[i])
-
-  Assigned$subject_ids[i]<-Subjects_to_keep[i]
-  Assigned$Event[i]<-unique(mySample$Event)
-  Assigned$Img1[i]<-unique(mySample$Imj1)
-  Assigned$Img2[i]<-unique(mySample$Imj2)
-   
+Subjects<-unique(NeedAssignment$new_sub_id)
+for(i in 1:how_long){
+  mySample<-filter(NeedAssignment, new_sub_id == Subjects[i])
+  Assigned$new_sub_id[i]<-Subjects[i]
+  Assigned$workflow_name[i]<-unique(mySample$workflow_name)
+  Assigned$workflow_version[i]<-unique(mySample$workflow_version)
+  Assigned$Img1[i]<-unique(mySample$Img1)
+  Assigned$Img2[i]<-unique(mySample$Img2)
   Assigned$Img3[i]<-unique(mySample$Img3)
-  
-  Assigned$round[i]<-unique(mySample$round)
- 
-  Assigned$CamNum[i]<-unique(mySample$CamNum)
-  
-  Assigned$SD_card[i]<-unique(mySample$SD_card_num)
-  
   Assigned$choice[i]<-unique(mySample$choice[1])
+  Assigned$DateTimeOriginal[i]<-unique(mySample$DateTimeOriginal)
+  Assigned$round[i]<-unique(mySample$round)
+  Assigned$Round[i]<-unique(mySample$Round)
+  Assigned$Forest[i]<- unique(mySample$Forest)
+  Assigned$CamNumber[i]<-unique(mySample$CamNumber)
+  Assigned$SDNumber[i]<-unique(mySample$SDNumber)
+  Assigned$Cam[i]<-unique(mySample$Cam)
+  Assigned$SD[i]<-unique(mySample$SD)
+  Assigned$Year[i]<-unique(mySample$Year)
+  Assigned$Student[i]<-unique(mySample$Student)
+  
+  
+  
  
 }
 ```
 Now save
 
 ```{r}
-write.csv(Assigned, "AssignedSpecies_no_beta_test.csv")
+write.csv(Assigned, here("Output", "PostZooniverse","master_assigned_AssignedSpecies_June2022.csv"))
+```
+
+I notice that there are 13315 subjects that have species assigned and 1983 subjects that need to be checked. That adds to 15298. There are a total of 15390 subject ids, so I'm not sure why we are missing 92 from all of this. Let's see which once are missing.
+
+```{r}
+subs1<-Assigned$new_sub_id
+subs2<-Checklist$new_sub_id
+all_subs<-c(subs1,subs2)
+my92<-setdiff(unique(df$new_sub_id), all_subs)
+see92<-cleaned_classifications %>% filter(new_sub_id %in% my92)
+see92<-see92 %>% arrange(new_sub_id, classification_id, array.index)
+```
+Now look at the ones for which num_votes = num_class.
+
+```{r}
+see92 %>% filter(num_votes == num_class) %>% View()
+```
+All are cases where there are as many species choices as there are votes. We need to add this set to Checklist.
+
+Create checklist 2
+```{r}
+check2<-see92 %>% filter(num_votes == num_class)
+#summarise
+
+check2<-check2 %>% group_by(new_sub_id) %>% summarize(
+  workflow_name = workflow_name,
+  workflow_version = workflow_version,
+  Img1 = Img1,
+  Img2 = Img2,
+  Img3 = Img3,
+  DateTimeOriginal = DateTimeOriginal,
+  round = round,
+  Round = Round,
+  Forest = Forest,
+  CamNumber = CamNumber,
+  SDNumber = SDNumber,
+  Cam = Cam,
+  SD = SD,
+  Year = Year,
+  Student = Student
+)
+```
+Now loop through check2 to grab just the first instance of each subject id and associated variables.  
+
+Make data frame to put results in 
+```{r}
+Subjects<-unique(check2$new_sub_id)
+
+Checklist2<-data.frame(new_sub_id = character(length(Subjects)),
+                      workflow_name = character(length(Subjects)),
+                      workflow_version = numeric(length(Subjects)),
+                      Img1 = character(length(Subjects)), 
+                      Img2 = character(length(Subjects)), 
+                      Img3 = character(length(Subjects)),
+                      DateTimeOriginal = character(length(Subjects)),
+                      round = character(length(Subjects)),
+                      Round = character(length(Subjects)),
+                      Forest = character(length(Subjects)),
+                      CamNumber = integer(length(Subjects)),
+                      SDNumber = integer(length(Subjects)),
+                      Cam = integer(length(Subjects)),
+                      SD = integer(length(Subjects)),
+                      Year = integer(length(Subjects)),
+                      Student = character(length(Subjects)))
+```
+Now loop
+```{r}
+for(i in 1:length(Subjects)){
+  mySample<-filter(check2, new_sub_id == Subjects[i])
+  Checklist2$new_sub_id[i]<-Subjects[i]
+  Checklist2$workflow_name[i]<-unique(mySample$workflow_name)
+  Checklist2$workflow_version[i]<-unique(mySample$workflow_version)
+  Checklist2$Img1[i]<-unique(mySample$Img1)
+  Checklist2$Img2[i]<-unique(mySample$Img2)
+  Checklist2$Img3[i]<-unique(mySample$Img3)
+  Checklist2$DateTimeOriginal[i]<-unique(mySample$DateTimeOriginal)
+  Checklist2$round[i]<-unique(mySample$round)
+  Checklist2$Round[i]<-unique(mySample$Round)
+  Checklist2$Forest[i]<-unique(mySample$Forest)
+  Checklist2$CamNumber[i]<-unique(mySample$CamNumber)
+  Checklist2$SDNumber[i]<-unique(mySample$SDNumber)
+  Checklist2$Cam[i]<-unique(mySample$Cam)
+  Checklist2$SD[i]<-unique(mySample$SD)
+  Checklist2$Year[i]<-unique(mySample$Year)
+  Checklist2$Student[i]<-unique(mySample$Student)
+}
+```
+Add column for assigning the choice
+```{r}
+Checklist2$choice<-NA
+Checklist2<-Checklist2 %>% relocate(choice, .after = Img3)
+```
+Add them to Checklist
+```{r}
+FinalCheck<-rbind(Checklist, Checklist2)
+write.csv(FinalCheck, here("Output", "PostZooniverse", "master_files_to_checkJune2022.csv"))
 ```
 
 
 
+Now deal with those that have multiple species per subject set.
 
+```{r}
+MoreThan<-see92 %>% filter(num_votes != num_class) 
+```
+I also want to just double check these, so let me add them as well.
 
+Create checklist 3
+```{r}
+check3<-MoreThan
+#summarise
 
+check3<-check3 %>% group_by(new_sub_id) %>% summarize(
+  workflow_name = workflow_name,
+  workflow_version = workflow_version,
+  Img1 = Img1,
+  Img2 = Img2,
+  Img3 = Img3,
+  DateTimeOriginal = DateTimeOriginal,
+  round = round,
+  Round = Round,
+  Forest = Forest,
+  CamNumber = CamNumber,
+  SDNumber = SDNumber,
+  Cam = Cam,
+  SD = SD,
+  Year = Year,
+  Student = Student
+)
+```
+Now loop through check3 to grab just the first instance of each subject id and associated variables.  
 
+Make data frame to put results in 
+```{r}
+Subjects<-unique(check3$new_sub_id)
+
+Checklist3<-data.frame(new_sub_id = character(length(Subjects)),
+                      workflow_name = character(length(Subjects)),
+                      workflow_version = numeric(length(Subjects)),
+                      Img1 = character(length(Subjects)), 
+                      Img2 = character(length(Subjects)), 
+                      Img3 = character(length(Subjects)),
+                      DateTimeOriginal = character(length(Subjects)),
+                      round = character(length(Subjects)),
+                      Round = character(length(Subjects)),
+                      Forest = character(length(Subjects)),
+                      CamNumber = integer(length(Subjects)),
+                      SDNumber = integer(length(Subjects)),
+                      Cam = integer(length(Subjects)),
+                      SD = integer(length(Subjects)),
+                      Year = integer(length(Subjects)),
+                      Student = character(length(Subjects)))
+```
+Now loop
+```{r}
+for(i in 1:length(Subjects)){
+  mySample<-filter(check3, new_sub_id == Subjects[i])
+  Checklist3$new_sub_id[i]<-Subjects[i]
+  Checklist3$workflow_name[i]<-unique(mySample$workflow_name)
+  Checklist3$workflow_version[i]<-unique(mySample$workflow_version)
+  Checklist3$Img1[i]<-unique(mySample$Img1)
+  Checklist3$Img2[i]<-unique(mySample$Img2)
+  Checklist3$Img3[i]<-unique(mySample$Img3)
+  Checklist3$DateTimeOriginal[i]<-unique(mySample$DateTimeOriginal)
+  Checklist3$round[i]<-unique(mySample$round)
+  Checklist3$Round[i]<-unique(mySample$Round)
+  Checklist3$Forest[i]<-unique(mySample$Forest)
+  Checklist3$CamNumber[i]<-unique(mySample$CamNumber)
+  Checklist3$SDNumber[i]<-unique(mySample$SDNumber)
+  Checklist3$Cam[i]<-unique(mySample$Cam)
+  Checklist3$SD[i]<-unique(mySample$SD)
+  Checklist3$Year[i]<-unique(mySample$Year)
+  Checklist3$Student[i]<-unique(mySample$Student)
+}
+```
+Add column for assigning the choice
+```{r}
+Checklist3$choice<-NA
+Checklist3<-Checklist2 %>% relocate(choice, .after = Img3)
+```
+
+And add to final check
+```{r}
+FinalCheck<-rbind(FinalCheck, Checklist3)
+write.csv(FinalCheck, here("Output", "PostZooniverse", "master_files_to_checkJune2022.csv"))
+```
+
+Now I have 2005 observations in FinalCheck and 13315 in Assigned = 15320
+
+So I'm still missing 70 observations...
+
+```{r}
+still_not_there<-setdiff(my92, FinalCheck$new_sub_id)
+```
 
