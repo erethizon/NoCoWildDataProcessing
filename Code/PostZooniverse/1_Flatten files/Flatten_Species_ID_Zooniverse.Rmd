@@ -18,6 +18,7 @@ Processing the data requires six steps:
 
 6. Write the output to a folder called "Flattened" in the PostZooniverse Output folder.
 
+THIS FILE IS FOR PARSING THE JSON DATA FROM THE "SPECIES IDENTIFICATION" WORKFLOWS. USE THE FILE "FLATTEN_IS_THERE_ANIMAL_ZOONIVERSE.RMD" TO PARSE ANIMAL PRESENCE/ABSENCE DATA.
 
 ### Turn on packages and bring in the data and r scripts
 We need to load desired packages and also source custom functions  so that they will run. The tidyjson package may have to be loaded from this [github](https://github.com/sailthru/tidyjson) site. Look [here](https://cran.r-project.org/web/packages/githubinstall/vignettes/githubinstall.html) for some hints as to how to do that.
@@ -98,7 +99,7 @@ output<-here("Output", "PostZooniverse", "Flattened")
 
 myFile<-str_remove(filename, ".csv") #drop the .csv temporarily
 
-write.csv(Flattened,  paste0(output, "/",myFile,"_","_flat_", Sys.Date(), ".csv"))
+write.csv(Flattened,  paste0(output, "/","wkfl_16695_29.1","_flat_", Sys.Date(), ".csv"))
 
 ```
 

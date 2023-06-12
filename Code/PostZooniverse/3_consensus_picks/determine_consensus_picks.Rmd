@@ -174,8 +174,8 @@ And now summarize
 ```{r}
 filesToCheck<-filesToCheck %>% group_by(subject_ids) %>% summarize(
   Event = Event,
-  Img1 = Img,
-  Img2 = Imj2,
+  Img1 = Img1,
+  Img2 = Img2,
   Img3 = Img3,
   round = round,
   CamNum = CamNum,
