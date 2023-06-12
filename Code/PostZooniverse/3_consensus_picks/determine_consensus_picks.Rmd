@@ -43,17 +43,32 @@ flat_file_path<-rstudioapi::selectFile(
 Flat <- read.csv(flat_file_path) #obviously, put correct file name here
 
 ```
+Check to see if data are from multiple rounds. If beta test round is present, get rid of it
+```{r}
+unique(Flat$round)
+```
+
 
 ```{r}
 #get rid of data from beta test
-Flat<-Flat %>% filter(round !="beta test")
+#Flat<-Flat %>% filter(round !="beta test")
 ```
 
 Parse the flat file into several data frames for simplicity; they will be joined back together later.
 
+1. Get rid of junk columns added by writing csv files (e.g. "X", "X.1")
 ```{r}
-Flat<-Flat %>% select(!c(X, X.1))
+#first identify any columns that begin with "X"
+Flat_cols<-colnames(Flat)
+junk_cols<- Flat_cols %>% str_starts("X")
+junk_cols <- str_which(junk_cols, "TRUE")
 
+#now subset by dumping that column
+Flat<-Flat %>% select(!junk_cols)
+
+```
+2. Now create "Choices" DF to work with (This step is extraneous and could be tightened up)
+```{r}
 Choices<-Flat
 ```
 Now work with Choices.
@@ -77,7 +92,7 @@ Choices %>% View
 Now arrange in descending order of the number of species detected.
 
 ```{r} 
-Choices %>% arrange(desc(num_diff_species, subject_ids)) %>% View()
+Choices %>% arrange(desc(num_diff_species)) %>% View()
 ```
 
 Now that we know the number of species identified per subject id, we need a way to  determine the consensus species for each subject id. First we'll write some code to check the species counts per subject id and classification id.

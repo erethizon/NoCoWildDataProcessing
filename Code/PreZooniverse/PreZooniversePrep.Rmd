@@ -33,7 +33,7 @@ In order to run this code, you will need to have the following in place:
 
 ## Set up the workspace for running the project.
 
-```{r, results='hide', echo = F}
+```{r, results='hide', echo = F, warning=FALSE}
 rm(list = ls())
 library(tidyverse)
 library(lubridate)

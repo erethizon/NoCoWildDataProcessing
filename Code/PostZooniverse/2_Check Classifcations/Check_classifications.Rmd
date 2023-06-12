@@ -52,9 +52,10 @@ ggplot(PerSubID, aes(NumClassification))+
 Now let's look at those subjects with 1, 2, or 7-10 classfications
 
 ```{r}
-Look<-which(PerSubID$NumClassification < 3|PerSubID$NumClassification >6)
+Look<-which(PerSubID$NumClassification < 3|PerSubID$NumClassification > 6)
 
-PickTheseIDs<-PerSubID$subject_ids[Look]
+PickTheseIDs<-PerSubID[Look,]
+Check<-filter(Classified, subject_ids %in% PickTheseIDs$subject_ids)
 ```
 
 Now arrange by subject id
