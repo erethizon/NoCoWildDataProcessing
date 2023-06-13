@@ -1,0 +1,47 @@
+---
+title: "Merging-flat-files"
+author: "Erika Barthelmess"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+I'm working on generating a master flat file that includes all classifications through 13 June 2023.  I have taken the three flat files with data that I generated yesterday:
+- wkfl_9599_123.17_flat_2023-06-12.csv
+- wkfl_12161_6.5_flat_2023-06-12.csv
+- wkfl_16695_29.1_flat_2023-06-12.csv
+
+and have adjusted them in excel so that they all have the same columns in the same order. I saved those adjusted files as:
+- wkfl_9599_123.17_flat_col.csv
+- wkfl_12161_6.5_flat_col.csv
+- wkfl_16695_29.1_flat_col.csv
+
+Now I'm going to put the data from these three files together into one master file for further processing.
+
+Set things up:
+```{r}
+rm(list =ls())
+library(tidyverse)
+library(here)
+```
+
+Read in the files
+```{r}
+DF1 <- read.csv(here("Output", "PostZooniverse", "Flattened", "wkfl_9599_123.17_flat_cols.csv"))
+DF2 <-read.csv(here("Output", "PostZooniverse", "Flattened", "wkfl_12161_6.5_flat_cols.csv"))
+DF3<- read.csv(here("Output", "PostZooniverse", "Flattened", "wkfl_16695_29.1_flat_cols.csv"))
+```
+Now check to see that colnames match in each DF
+```{r}
+colnames(DF1)==colnames(DF2)
+colnames(DF1)==colnames(DF3)
+```
+Good! Now I can make one master DF
+
+
+
+
+
