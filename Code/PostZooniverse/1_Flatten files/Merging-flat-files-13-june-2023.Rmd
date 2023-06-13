@@ -41,7 +41,31 @@ colnames(DF1)==colnames(DF3)
 ```
 Good! Now I can make one master DF
 
+```{r}
+Master <- rbind(DF1, DF2, DF3)
+```
+Now take a look at the data in Master
+```{r}
+summary(Master)
+```
 
+Some of the rows for the FILE column are empty. Let's take a look
 
+```{r}
+check<-subset(Master, is.na(FILE)| trimws(FILE)=="")
+unique(check$workflow_name)
+unique(check$workflow_version)
+```
+So all of the blanks are from the same file. Need to replace that information into the Master.
 
+```{r}
+fix<-which(is.na(Master$FILE)|trimws(Master$FILE)=="")
+Master$FILE[fix]<-"wkfl_12161_6.5_flat_2023-06-12"
+```
+
+All better.  Now save the file.
+
+```{r}
+write.csv(Master, here("Output", "PostZooniverse", "Flattened", "flat_through_2023-06-13.csv"))
+```
 
