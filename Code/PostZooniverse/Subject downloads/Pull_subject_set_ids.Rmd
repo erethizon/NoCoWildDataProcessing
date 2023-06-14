@@ -1,0 +1,50 @@
+---
+title: "Flattening our Zooniverse files"
+output: html_notebook
+---
+The code in this file is designed to open the subjects export file and pull the columns that contain the subject_id for each image as well as the subject_set_id so that we can keep add that information to the classification data.
+
+Set things up:
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(here)
+library(rstudioapi)
+
+myFunctions<-list.files(here("Code", "Functions"), pattern = "R") 
+#points to files that need to be sourced
+
+sapply(here("Code", "Functions", myFunctions), source) #sources all of the functions in the Functions folder.
+```
+
+Now pull in data file:
+```{r}
+
+rstudioapi::showDialog(
+    title = "Let's give R some file information",
+    message = "Select the file containing the subject export data you wish to process")
+
+  #path to exif file folder on t:drive
+  path_to_class_file<-"/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/classification_files/"
+
+  class_file_path<-rstudioapi::selectFile(
+    path = "/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/classification_files/",
+    filter = "CSV files (*.csv)",
+    label= "Select desired file"
+  )
+
+  DF<-read.csv(class_file_path)
+  filename<-basename(class_file_path)
+
+```
+
+Now we just need to extract the two columns subject_id and subject_set_id into a new df and write it.
+
+```{r}
+newDF<-DF %>% select(subject_id, subject_set_id)
+```
+Now save
+```{r}
+write.csv(newDF, here("Data", "subject_set_ids-2023-06-13.csv"))
+```
+
