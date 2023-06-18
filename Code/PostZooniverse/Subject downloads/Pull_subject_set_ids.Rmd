@@ -37,6 +37,16 @@ rstudioapi::showDialog(
   filename<-basename(class_file_path)
 
 ```
+Now filter to the workflow id that you want
+```{r}
+unique(DF$workflow_id)
+```
+```{r}
+newDF<-filter(DF, workflow_id == 16695)
+length(unique(newDF$subject_id))
+```
+
+
 
 Now we just need to extract the two columns subject_id and subject_set_id into a new df and write it.
 

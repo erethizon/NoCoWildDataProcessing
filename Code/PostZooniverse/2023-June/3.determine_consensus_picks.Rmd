@@ -67,6 +67,20 @@ junk_cols <- str_which(junk_cols, "TRUE")
 Flat<-Flat %>% select(!junk_cols)
 
 ```
+Now for ease of viewing, get rid of all columns that are empty. First determine which they are
+```{r}
+empty_cols<-sapply(Flat, function(x)all(is.na(x)))
+```
+The empty columns are:
+task_label, id, round, batch,CamMod,CamNumber, SDNumber, Forest,For_type,round1, Img4, Img5, Img6,CamNum,SD_card_num,Event,PHase,SDCard, Lat, Long,Treatment
+
+So lets remove them (but keep Event which will be used later)
+```{r}
+dump_cols<-c("task_label", "id", "round", "batch","CamMod","CamNumber", "SDNumber", "Forest","For_type","round1", "Img4", "Img5", "Img6", "CamNum","SD_card_num","Phase","SDCard", "Lat", "Long","Treatment")
+Flat<-Flat %>% select(!dump_cols)
+```
+
+
 2.Summarize the data to see the number of distinct subjects (events) and the number of distinct classifications in the data set. 
 ```{r}
 Flat %>% summarise(n_distinct(subject_ids), n_distinct(classification_id)) 
@@ -167,7 +181,7 @@ filesToCheck<-filter(cleaned_classifications, subject_ids %in% subjects_to_filte
 
 write file
 ```{r}
-write.csv(filesToCheck, here("Output","PostZooniverse", "master_files_to_check-2023-06-13.csv"))
+write.csv(filesToCheck, here("Output","PostZooniverse", "wkflw_16995_files_to_check-2023-06-13.csv"))
 ```
 
 And now summarize
@@ -180,9 +194,9 @@ filesToCheck<-filesToCheck %>% group_by(subject_ids) %>% summarize(
   Img1 = Img1,
   Img2 = Img2,
   Img3 = Img3,
-  round = round,
-  CamNum = CamNum,
-  SD_card = SD_card_num
+  Forest1 = Forest1,
+  DTO= DTO,
+  subject_set_id = subject_set_id
 )
 ```
 Now loop through filesToCheck to grab just the first instance of each subject id and associated variables.  
@@ -195,9 +209,9 @@ Checklist<-data.frame(subject_ids = integer(length(Subjects)),
                       Img1 = character(length(Subjects)), 
                       Img2 = character(length(Subjects)), 
                       Img3 = character(length(Subjects)),
-                      round = character (length(Subjects)),
-                      CamNum = integer(length(Subjects)), 
-                      SD_card = integer(length(Subjects)))
+                      Forest = character(length(Subjects)),
+                      DTO = character(length(Subjects)),
+                      subject_set_id = integer(length(Subjects)))
 ```
 Now loop
 ```{r}
@@ -207,15 +221,15 @@ for(i in 1:length(Subjects)){
   Checklist$Img1[i]<-unique(mySample$Img1)
   Checklist$Img2[i]<-unique(mySample$Img2)
   Checklist$Img3[i]<-unique(mySample$Img3)
-  Checklist$round[i]<-unique(mySample$round)
-  Checklist$CamNum[i]<-unique(mySample$CamNum)
-  Checklist$SD_card[i]<-unique(mySample$SD_card)
+  Checklist$Forest[i]<-unique(mySample$Forest1)
+  Checklist$DTO[i]<-unique(mySample$DTO)
+  Checklist$subject_set_id[i]<-unique(mySample$subject_set_id)
 }
 ```
 Now save
 
 ```{r}
-write.csv(Checklist, "files_to_check_no_beta_test.csv")
+write.csv(Checklist, here("Output", "PostZooniverse", "check_species_wkflw16995-2023-06-13.csv"))
 ```
 
 Now we need to assign the correct species for the files that we are not checking:
@@ -235,9 +249,9 @@ Assigned<-data.frame(subject_ids = integer(length(Subjects_to_keep)),
                 Img1 = character(length(Subjects_to_keep)), 
                 Img2 = character(length(Subjects_to_keep)),
                 Img3 = character(length(Subjects_to_keep)),
-                round = character (length(Subjects_to_keep)),
-                CamNum = integer(length(Subjects_to_keep)), 
-                SD_card = integer(length(Subjects_to_keep)),
+                Forest = character(length(Subjects_to_keep)),
+                DTO = character(length(Subjects_to_keep)),
+                subject_set_id = integer(length(Subjects_to_keep)),
                 choice = character (length(Subjects_to_keep)))
 ```
 Now loop
@@ -249,15 +263,10 @@ for(i in 1:length(Subjects_to_keep)){
   Assigned$subject_ids[i]<-Subjects_to_keep[i]
   Assigned$Img1[i]<-unique(mySample$Img1)
   Assigned$Img2[i]<-unique(mySample$Img2)
-   
   Assigned$Img3[i]<-unique(mySample$Img3)
-  
-  Assigned$round[i]<-unique(mySample$round)
- 
-  Assigned$CamNum[i]<-unique(mySample$CamNum)
-  
-  Assigned$SD_card[i]<-unique(mySample$SD_card_num)
-  
+  Assigned$Forest[i]<-unique(mySample$Forest1)
+  Assigned$DTO[i]<-unique(mySample$DTO)
+  Assigned$subject_set_id[i]<-unique(mySample$subject_set_id)
   Assigned$choice[i]<-unique(mySample$choice[1])
  
 }
@@ -265,7 +274,7 @@ for(i in 1:length(Subjects_to_keep)){
 Now save
 
 ```{r}
-write.csv(Assigned, here("Output", "PostZooniverse", "AssignedSpecies_through_2023-06-13.csv"))
+write.csv(Assigned, here("Output", "PostZooniverse", "AssignedSpecies_wkflow16995_2023-06-13.csv"))
 ```
 
 
