@@ -1,6 +1,6 @@
 ---
 title: "Image processing: Assign images to events and create manifest"
-output: html_notebook
+output: html_document
 ---
 ## Introduction
 In order to review the images from our game camera exploits, we need to batch load the images and their associated manifest file to the **[Zooniverse](http://www.zooniverse.org)**. Our game cameras are set to take pictures in bursts of 3 shots (3 shots = 1 event) - to help ensure identification of the animal.  Thus, the 3 images should not be treated independently, but really as a single observation or **event**.  
@@ -90,7 +90,19 @@ FilePrefix<-str_remove(FileName, ".csv")
 ```
 
 ## Step 1 - Assign images to events
-Now assign images to events using assignEvents function (assignEvents.R).  We will need to set the time threshold (default is 1 minute).If you want a different threshold, pass it (an integer of number of seconds) to the assignEvents as the second argument
+In order to assign images to events, we need to make sure that the Mac didn't leave any "ghost" file names in the FileName column of the exif file (ghost files names start "._" and result from some behind the scenes mac OS stuff when working on an external hard drive) using a function called "check_filename_values.R". Assuming everything is ok, we then assign images to events using assignEvents function (assignEvents.R).  We will need to set the time threshold (default is 1 minute).If you want a different threshold, pass it (an integer of number of seconds) to the assignEvents as the second argument
+
+```{r}
+check_filename_values(Exif$FileName)
+```
+
+If you need to remove rows that begin with ._ you should use the function called `fix_filename_values()` in the next code block. If it all looks good, skip ahead to the code block that runs `assignEvents()`
+
+```{r}
+Exif<-fix_filename_values(Exif)
+check_filename_values(Exif$FileName)
+```
+
 
 ```{r}
 Exif<-assignEvents(Exif) #no threshold passed, using default of 60 seconds
