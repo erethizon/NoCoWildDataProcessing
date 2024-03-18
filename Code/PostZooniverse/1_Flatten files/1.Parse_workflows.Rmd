@@ -1,0 +1,146 @@
+1
+---
+title: "Parsing Workflows from our Zooniverse classification files"
+output: html_notebook
+---
+## Overview
+When we download classification data from the zooniverse, the file we receive is cumulative and includes all of the classifications we ever generate in our project. This file allows us to create a set of subfiles, separated into their respective workflow IDs and workflow versions (one workflow ID can have several versions). The result is a set of files, one for each workflow ID - version combination.
+
+Ultimately, I am going to use this code to write a function that can be called that will process a classifcation file into its separate subfiles.
+ 
+### Turn on packages and bring in the data and r scripts
+We need to load desired packages and also source custom functions  so that they will run. The tidyjson package may have to be loaded from this [github](https://github.com/sailthru/tidyjson) site. Look [here](https://cran.r-project.org/web/packages/githubinstall/vignettes/githubinstall.html) for some hints as to how to do that.
+
+```{r, message=FALSE, echo=FALSE}
+rm(list = ls())
+library(here)
+library(tidyverse)
+library(magrittr) #allows piping beyond tidyverse
+library(lubridate)
+library(rstudioapi)
+
+myFunctions<-list.files(here("Code", "Functions"), pattern = "R") 
+#points to files that need to be sourced
+
+sapply(here("Code", "Functions", myFunctions), source) #sources all of the functions in the Functions folder.
+```
+
+
+###Step 1. Choose the classification file to work with.
+We have multiple classification files. The choose_file_isolate_workflow asks the user for input so that they can select the classification file to work with. The classification file should be on the t://drive in Bart_s04/Research_group/NoCoWild/Data/classification_files.
+
+Try with the `choose_file_isolate_workflow` function
+
+```{r}
+myList<-choose_classification_file()
+data<-myList[[1]]
+filename<-myList[[2]]
+```
+
+
+
+###Step 2. Parse all of the workflows to separate dataframes
+A single workflow might contain classifications of data from multiple projects, so we need to subset it to just the project we are looking for. 
+
+So here we subset the main classification file into all of the included workflows. 
+
+Get a list of all of the workflows_ids and their respective workflow_versions in the file
+
+```{r}
+workflow_summary <- data |> group_by(workflow_id) |> reframe(
+  workflow_version = unique(workflow_version)
+)
+```
+
+Now write a loop that steps through each combination of workflow and workflow versions, filters to each, and writes a file for that combination.
+
+```{r}
+workflows <- unique(workflow_summary$workflow_id)
+#now ask the user for date information
+  x <- readline("Please enter the date portion of the classification file name in the format DD-MMM-YYYY:  ")
+  x <- as.character(x)
+  
+for (i in 1:length(workflows)){
+  #obtain workflow versions for the particular workflow
+  DF <- workflow_summary %>% filter(workflow_summary$workflow_id == workflows[i]) 
+  versions<-unique(DF$workflow_version)
+ 
+   #now step through each workflow version and create a datafile
+  for (z in 1:length(versions)){
+    newDF <- DF |> filter(workflow_version == versions[z])
+    newData <- filter(data, workflow_id == newDF$workflow_id[1] & workflow_version == newDF$workflow_version[1])
+  
+  write.csv(
+    newData, 
+    here("Output", "PostZooniverse", "DFs", paste0("NoCoW_class-",x, "-wfn", newData$workflow_id[1],"_wfv",newData$workflow_version[1],".csv")))
+  }
+  
+}
+```
+
+It works! Need to make into a function.
+
+
+```{r}
+### function to parse classification file into a series of subfiles. Pass a classification file from the zooniverse in as the main argument.
+
+parse_classification_file <- function(class_file){
+  require(rstudioapi) #turns on Rstudio api if not alreay loaded
+  require(svDialogs)#for pop-up window
+  
+  data <- class_file #assign data 
+  
+  #ask user for date to go with file names
+  x <-dlgInput("Please enter the date portion of the classification file name in the format DD-MMM-YYYY:  ")
+  x <- x$res
+ 
+  #ask user where to store output files
+  rstudioapi::showDialog(
+    title = "Let's give R some directory information",
+    message = "Select the folder in which you would like to save the output")
+
+  output_path<-rstudioapi::selectDirectory(
+    path = here("Output", "PostZooniverse"),
+    label= "Select the directory"
+  )
+  
+ #get a list of all of the workflow ids and workflow versions in the classification file
+  workflow_summary <- data |> group_by(workflow_id) |> reframe(
+  workflow_version = unique(workflow_version))
+  
+##Now write a loop that steps through each combination of workflow and workflow versions, filters to each, and writes a file for that combination.
+
+workflows <- unique(workflow_summary$workflow_id)
+
+for (i in 1:length(workflows)){
+  #obtain workflow versions for the particular workflow
+  DF <- workflow_summary %>% filter(workflow_summary$workflow_id == workflows[i]) 
+  versions<-unique(DF$workflow_version)
+ 
+   #now step through each workflow version and create a datafile
+  for (z in 1:length(versions)){
+    newDF <- DF |> filter(workflow_version == versions[z])
+    newData <- filter(data, workflow_id == newDF$workflow_id[1] & workflow_version == newDF$workflow_version[1])
+  
+  write.csv(
+    newData, 
+    paste0(output_path, "/NoCoW_class-",x, "-wfn", newData$workflow_id[1],"_wfv",newData$workflow_version[1],".csv"))
+  }
+}
+}
+
+
+
+
+```
+
+Try it!
+```{r}
+parse_classification_file(data)
+```
+
+It works! Adding to my list of functions!.
+
+
+
+

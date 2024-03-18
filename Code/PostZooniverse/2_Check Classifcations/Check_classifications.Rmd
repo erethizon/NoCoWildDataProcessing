@@ -49,7 +49,7 @@ Plot a histogram of number of classifications
 ggplot(PerSubID, aes(NumClassification))+
   geom_histogram()
 ```
-Now let's look at those subjects with 1, 2, or 7-10 classfications
+Now let's look at those subjects with 1, 2, or more than 6 classfications
 
 ```{r}
 Look<-which(PerSubID$NumClassification < 3|PerSubID$NumClassification > 6)

@@ -1,6 +1,10 @@
 ---
 title: "Image Pre-processing 2: Create the Manifest"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: inline
 ---
 ## Introduction
 In order to review the images from our game camera exploits, we need to batch load the images and their associated manifest file to the [zooniverse](http://www.zooniverse.org).  Our game cameras are set to take pictures in bursts of 3 shots (3 shots = 1 event) - to help ensure identification of the animal.  Thus, the 3 images should not be treated independently, but really as a single observation or *event*.  

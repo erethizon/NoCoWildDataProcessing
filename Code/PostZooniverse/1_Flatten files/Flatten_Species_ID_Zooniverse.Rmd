@@ -72,6 +72,7 @@ flat_file<-flatten_annotations(data) #this is slow; could we write faster code? 
 
 Now we can parse the data.
 
+
 ```{r}
 subjects<-flatten_subjects(data)
 ```
