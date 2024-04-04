@@ -1,8 +1,0 @@
-"","Parameter","Value"
-"1","File name","NoCoW_class-15-Feb-2024-wfn9599_wfv73.7.csv"
-"2","Workflow ID","9599"
-"3","Workflow name","Workflow 1"
-"4","Workflow version","73.7"
-"5","Num unflattened rows","1"
-"6","Num unique classifications","1"
-"7","Num unique subjects","1"

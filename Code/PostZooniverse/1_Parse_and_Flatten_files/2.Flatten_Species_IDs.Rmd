@@ -10,7 +10,7 @@ editor_options:
 ## Overview
 Output from classifications on the [Zooniverse](https://zooniverse.com) come encoded in *JSON format*.  While most of the columns are straightforward to interpret, two critical columns are not.  The first is the **annotation column**.  Within it are the species identification and the answers to all of the questions for each event. Likewise, the **subject_data** column contains all of the information from the manifest, such as the forest type, photo batch, camera number, and forest name.  It would be good to be able to pull all of this information. We especially need it if we plan to remove e.g. images taken on malfunctioning cameras or otherwise suspect images.
  
-Processing the data requires six steps:
+Processing the data requires five steps:
 1. Selecting the correct classification file.  That file is obtained from the `1.Parse_workflows.Rmd` file in the previous step. **For this code to run, we are assuming you have a single classification file containing only one workflow and single workflow version.**
 
 2. Parsing the annotations column. The annotations column is the column in the zooniverse classification file that includes all of the answers to the questions in the zooniverse workflow, including what the species is and what the animals are doing.

@@ -1,0 +1,27 @@
+---
+title: "Analysis Notes April 2024"
+output: html_document
+date: "2024-04-04"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+I've been working on dealing with all of the classifiction data through 15 February 2024. Once this is complete, I can slightly tweak the workflow version numbers so that we can simply filter to the most recent workflow and not have to deal with all of the old data. This will also be helpful as Brett and I work to figure out what output of zooniverse classifications needs to go to the RDS.
+
+I downloaded the 'master' classification file on 15 Feb 2024. I wrote a new script (./Code/PostZooniverse/1_Parse_and_Flatten_files/1.Parse_workflows.Rmd) that takes that classification file and subdivides it into the set of all possible workflows and workflow versions, each collected into its own .csv file and each with a metadata file. These are stored in (./Output/PostZooniverse/DFs).
+
+I then took each of those files and flattened it, using the code in (./Code/PostZooniverse/1_Parse_and_Flatten_files/2.Flatten_Species_IDs.Rmd). I have not yet dealt with the "Is there an animal" workflows.
+
+I put each flattened file in  `./Output/PostZooniverse/Flattened/Species_ID`.
+
+Those files that were clearly zooniverse "test runs" for different workflows (with only up to about 50 events and typically a single classification per event) I moved to a subfolder in that directory called `Testing zooniverse` where they sit, but where I do not need to work with them any further.
+
+I moved the others into a folder called `Check` in the same subdirectory.
+
+I went through all of the files in the `Check` directory using the file `./Code/PostZooniverse/2_Check classifications` and either moved the files into another subdirectory called `Checked` that need no further work because they don't have meaningful data. Those that have data that needs analysis I moved into a subdirectory called `need to process`. On April 4, 2024, this folder contains 5 data files of flattened classifications along with the metadata file for each for a total of 10 files in the subdirectory.
+
+Next, I opened the file `./Code/PostZooniverse/3_Consensus_picks/3.determine_consensus_picks.Rmd` and used it to start processing each of the 5 files with meaningful data.
+

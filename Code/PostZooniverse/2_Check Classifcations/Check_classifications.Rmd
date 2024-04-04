@@ -5,7 +5,7 @@ output: html_notebook
 
 The end product of the flattening process is a new dataset that includes all of the species identifications and metadata associated with each event. We need to take those data and explore them to determine how well the classifications were made.
 
-```{r}
+```{r, results='hide'}
 rm(list = ls())
 library(tidyverse)
 library(here)
