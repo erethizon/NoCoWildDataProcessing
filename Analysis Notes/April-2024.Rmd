@@ -11,8 +11,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Introduction
 I've been working on dealing with all of the classifiction data through 15 February 2024. Once this is complete, I can slightly tweak the workflow version numbers so that we can simply filter to the most recent workflow and not have to deal with all of the old data. This will also be helpful as Brett and I work to figure out what output of zooniverse classifications needs to go to the RDS.
 
+### Parse files
 I downloaded the 'master' classification file on 15 Feb 2024. I wrote a new script (./Code/PostZooniverse/1_Parse_and_Flatten_files/1.Parse_workflows.Rmd) that takes that classification file and subdivides it into the set of all possible workflows and workflow versions, each collected into its own .csv file and each with a metadata file. These are stored in (./Output/PostZooniverse/DFs).
 
+### Flatten Files
 I then took each of those files and flattened it, using the code in (./Code/PostZooniverse/1_Parse_and_Flatten_files/2.Flatten_Species_IDs.Rmd). I have not yet dealt with the "Is there an animal" workflows.
 
 I put each flattened file in  `./Output/PostZooniverse/Flattened/Species_ID`.
@@ -23,5 +25,21 @@ I moved the others into a folder called `Check` in the same subdirectory.
 
 I went through all of the files in the `Check` directory using the file `./Code/PostZooniverse/2_Check classifications` and either moved the files into another subdirectory called `Checked` that need no further work because they don't have meaningful data. Those that have data that needs analysis I moved into a subdirectory called `need to process`. On April 4, 2024, this folder contains 5 data files of flattened classifications along with the metadata file for each for a total of 10 files in the subdirectory.
 
+### Determine consensus picks
 Next, I opened the file `./Code/PostZooniverse/3_Consensus_picks/3.determine_consensus_picks.Rmd` and used it to start processing each of the 5 files with meaningful data.
+
+The end result is 3 separate output files in three separate directories:
+`./Output/PostZooniverse/Consensus/Correct` contains files for which there was a single consensus species ID per subject_id
+`.Output/PostZooniverse/Consensus/Needs check` contains files for which there was not consensus of at least 80% agreement on the species_ID
+
+`.Output/PostZooniverse/Consensus/Needs check/Checklists` contains files that have been reduced to a single row per ambiguous subject and that have a final species ID column. These files can be opened in Excel and filled in with final species ID when going through images.
+
+After exporting the checklists that need to be checked, I also went through the cleaned classifications and grabbed all of the cases for which the propotion of the vote for a particular species was >= 0.8 and created a new dataframe called Assigned that grabbed a single row for each subject_id and assigned all of the relevant information. Then wrote that file to 
+`./Output/PostZooniverse/Consensus/Correct/Assigned`.
+
+In theory, the subject IDs from the checklist file and the subject ids from the assigned file should add up to all subject ids from the classfication file.
+
+When they don't match, I created a DF called LastOnes in the `3.determine_consensus_picks.Rmd` script that shows the data for those subject_IDs that were somehow left out. I need to dig in and figure out how those were missed.
+
+
 
