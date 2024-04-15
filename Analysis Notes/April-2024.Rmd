@@ -39,7 +39,11 @@ After exporting the checklists that need to be checked, I also went through the 
 
 In theory, the subject IDs from the checklist file and the subject ids from the assigned file should add up to all subject ids from the classfication file.
 
-When they don't match, I created a DF called LastOnes in the `3.determine_consensus_picks.Rmd` script that shows the data for those subject_IDs that were somehow left out. I need to dig in and figure out how those were missed.
+When they don't match, I created a DF called LastOnes in the `3.determine_consensus_picks.Rmd` script that shows the data for those subject_IDs that were somehow left out. I need to dig in and figure out how those were missed. In the meantime, I am exporting the "Last Ones" .csv to `./Output/PostZooniverse/Consensus/Needs check/Last Ones`
+
+### Finalizing consensus picks
+It is up to a human to go through the (up to) 2 files with inconclusive species identifications to make the final species confirmation by looking back at the acutal images. The finalized checklist and Last Ones csv files should be saved to `./Output/PostZooniverse/Consensus/By workflow/` directory in a unique directory for each workflow number and version. The final assigned csv should be copied to this folder as well. 
+
 
 
 
