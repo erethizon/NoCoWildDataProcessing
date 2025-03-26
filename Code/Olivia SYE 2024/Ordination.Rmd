@@ -1,0 +1,335 @@
+---
+title: "Ordination on importance values"
+output: html_output
+---
+## Overview
+Use the `vegan` package to conduct a non-metric multidimensional scaling ("NMDS") ordination of our forests, using the importance value of each species in each plot as the variable we will use to differentiate communities.
+
+## Set things up
+First, set things up: You will need some packages we haven't used before, so remember that the code `install.packages("packagename")` installs a new package in  your RStudio environment and that you then need `library(packagename)` to activate the package(s).
+
+Set up your workspace in the code chunk below, and include installation of the packages `vegan`, `ggpubr` and `ggrepel`. We will also use a package called `ggvegan` for plotting the results of our ordination. 
+
+```{r}
+#put all your setup code here
+rm(list = ls())
+library(tidyverse)
+library(here)
+library(vegan)
+library(ggvegan)
+library(ggpubr)
+library(ggrepel)
+library(ggfortify)
+```
+
+Next, we need some data. Use the dataset called "TreesIV.csv". This dataset has the importance values of each species in each forest plot for our 15 sites as calculated in problem set 2.
+
+```{r}
+#write code to read in the data here
+trees<-read.csv(here("Output", "Olivia", "trees_for_ordination.csv"))
+```
+
+The dataframe Trees has 23 columns. The first two identify the forest and plot, respectively. The remainder identify the importance value for each species that we observed across all of our forest sampling. I have precleaned the data set for you, so you can bypass the standard practice of data checking (just this once!).
+
+
+## Grab the columns with forest, plot
+We'll need to grab the columns containing information about forest and plot number to use later in our plots. 
+
+Write code in the box below that extracts the first two columns of Trees and saves them as a new dataframe called "PlotInfo"
+
+```{r}
+#write your code here
+PlotInfo<-trees[,1:2]
+```
+
+
+## Run the ordination.
+We use the  `vegan` package to conduct the ordination.
+
+The following code block creates an object called TreeOrd by running the `metaMDS` function in the `vegan` package. This function conducts a NMDS ordination. 
+
+```{r}
+TreeOrd<-metaMDS(trees[, 3:23], distance = "bray", k = 2, trymax = 50) 
+```
+Why does the code show `metaMDS(trees[,3:23])`?  What does the `[,3:23]` do?
+
+Write your answer here:
+The following code block creates an object called TreeOrd by running the `metaMDS` function in the `vegan` package. This function conducts a NMDS ordination.
+
+
+We only want to run the ordination on the values in columns 3:23 not the columns that specify forest and plot.
+
+
+
+## Interpret the results
+Notice that the TreesOrd object in your Environment window is a list of 36 different items!  First, take a look at the "stress" associated with the model. Stress is a measure of how well our two-dimensional representation captures the information in our 23-dimensional space (the 23 species). In general, stress values need to be less than 0.2 to be acceptable.
+
+Let's look at the stress associated with this ordination. See if you can write code that asks for the item called `stress` from among the list of items in TreeOrd:
+
+```{r}
+#write your code to ask for the stress value here:
+TreeOrd$stress
+
+```
+Good - 0.1282567 < 0.20
+
+## Plot the results for further interpretation.
+
+We can plot the results using the `ggvegan` and `ggplot2` packages. Make sure  you have them turned on.
+
+The first step is to use a function called `fortify` to rearrange the output into a long-format dataframe familiar to ggplot2. Then we can make a basic plot. Then we will spruce up our basic plot.
+
+### Fortify the result
+```{r}
+ForPlotting<-fortify(TreeOrd)
+```
+Now we will make our plots from the new ForPlotting dataframe.
+
+### Make a basic plot
+```{r}
+ggplot(ForPlotting, aes(NMDS1,NMDS2,group = score))+
+   geom_text(aes(label=label, color = score))+
+   scale_color_manual(values = c(sites = "brown", species = "green"))+
+   geom_point(aes(color=score, shape =score))+
+   scale_color_manual(values = c(sites = "red", species = "black"))
+```
+This plot is in the direction that we want, but we can improve upon it considerably. Run the next code block and look at the resulting figure. Then come back to this code chunk and look at the code carefully. After each `#` symbol in the code block below, type in what you think the section of code immediately preceeding the # is doing:
+
+```{r}
+ggplot()+
+   geom_point(data = subset(ForPlotting, score =="sites"),
+              mapping = aes(x = NMDS1, y = NMDS2),
+              alpha = 0.8)+
+   #
+   geom_segment(data=subset(ForPlotting, score == "species"),
+                mapping = aes(x = 0, y = 0, xend = NMDS1,   yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size =1,
+               alpha = 0.8)+
+   #
+   geom_text(data = subset(ForPlotting, score == "species"),
+             mapping = aes(label = label, x = NMDS1*1.1, y=NMDS2*1.1), alpha = 0.8)+
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", size = 0.8, color = "gray")+
+   #
+   geom_vline(aes(xintercept = 0), linetype = "dashed", size = 0.8, color = "gray")+
+   
+   #
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black"),
+      legend.position = "none")
+   
+   #
+
+```
+
+That plot has a lot of information in one plot - let's see if we can pull information out into two separate plots for easier interpretation. Regard the following code which creates a plot called p1 which puts each site on a plot, colored by forest, and numbered by plot number.
+
+Run the code to create the plot called p1, then come back to this code chunk and again, try to identify what each section of code is doing by writing in text following the # symbols:
+
+```{r}
+p1<-ggplot()+
+   geom_point(data = subset(ForPlotting, score =="sites"),
+              mapping = aes(x = NMDS1, y = NMDS2, color = PlotInfo$Forest),
+              alpha = 0.8)+
+   #
+  geom_text_repel(data = subset(ForPlotting, score =="sites"), mapping = aes(x = NMDS1, y = NMDS2,label = PlotInfo$Plot))+
+   #
+   geom_segment(data=subset(ForPlotting, score == "species"),
+                mapping = aes(x = 0, y = 0, xend = NMDS1,   yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0,
+               alpha = 0)+
+   #What does it meant that size = 0 and alpha = 0?
+   #
+   geom_text(data = subset(ForPlotting, score == "species"),
+             mapping = aes(label = label, x = NMDS1*1.1, y=NMDS2*1.1), alpha = 0)+
+   #
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", size = 0.8, color = "gray")+
+   #
+   geom_vline(aes(xintercept = 0), linetype = "dashed", size = 0.8, color = "gray")+
+   #
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black"),
+      legend.position = "none")+
+   #
+   scale_color_discrete("Forest")
+   #
+p1
+```
+And now let's make a second plot that shows the species locations. As before, run the code, examine the plot, see how it is different from p1 and then look at the code for p2 and compare it with the code for p1. Again make notes about how the plot code works by filling in text following the # symbols.
+
+```{r}
+p2<-ggplot()+
+   geom_point(data = subset(ForPlotting, score =="sites"),
+              mapping = aes(x = NMDS1, y = NMDS2),
+              color = "black",
+              alpha = 0)+
+   #what does it mean that alpha = 0?
+   #
+   geom_segment(data=subset(ForPlotting, score == "species"),
+                 mapping = aes(x = 0, y = 0, xend = NMDS1, yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0.8)+
+   #
+   geom_text(data = subset(ForPlotting, score == "species"),
+             mapping = aes(label = label, x = NMDS1*1.1, y=NMDS2*1.1))+
+   #why are x and y = NMDS*1.1? Try deleting the *1.1 part on each and re-run the plot to see what impact they have. Then replace them.
+   #
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", size = 0.8, color = "gray")+
+   #
+   geom_vline(aes(xintercept = 0), linetype = "dashed", size = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black")
+   )
+#
+p2
+```
+Finally, plot them together using `ggpubr`
+
+```{r}
+TreeIVOrdination<-ggarrange(p1,p2,ncol = 1)
+TreeIVOrdination
+```
+And save the plot!
+
+```{r}
+ggsave
+```
+Now let's see if we can map some environmental variables onto our ordination to try and understand how these plots differ from one another.
+
+First, pull in the environmental data. Use the dataset called "EnviroVars2021.csv" and name it ENV.
+
+```{r}
+#write your code here
+ENV<-read.csv(here("Output", "Olivia", "EnviroVars2021.csv"))
+```
+Now fit environmental variables onto our ordination
+```{r}
+fit<-envfit(TreeOrd, ENV[,4:16], permu = 999)
+fit
+```
+Take a minute to look at this table. What is it indicating about the different environmental variables?  Which ones have P<0.10? P < 0.06? 
+
+Write your answers here:
+
+
+
+Now plot with the fit data
+```{r}
+plot(TreeOrd, type = 't', display = "sites")
+plot(fit, p.max = 0.06)
+```
+See [this stackexchange post](https://stackoverflow.com/questions/14711470/plotting-envfit-vectors-vegan-package-in-ggplot2) to see how to plot the environmental variables using ggplot
+
+Try it:
+```{r}
+#get scores from fit
+env.scrs<-as.data.frame(scores(fit, display = "vectors"))
+env.scrs<-cbind(env.scrs, label = rownames(env.scrs))
+env.scrs$score<-"env"
+```
+Now reorder columns with relocate and then rbind to ForPlotting
+
+```{r}
+env.scrs<-env.scrs %>% relocate(score, .before=NMDS1)
+env.scrs<-env.scrs %>% relocate(label, .before = NMDS1)
+```
+Now subset to only those env vars with p < 0.06
+
+```{r}
+myrows<-c("Bare", "Bry", "Vasc", "Elevation_m", "mNitrate", "mCa", "mMg", "mCEC")
+env.scrs<-env.scrs %>% filter(Label %in% myrows)
+names(env.scrs)<-c("score", "label", "NMDS1", "NMDS2")
+```
+Now connect to ForPlotting
+
+```{r}
+ForPlotting2<-rbind(ForPlotting, env.scrs)
+```
+And now plot!
+
+```{r}
+p3<-ggplot()+
+   geom_point(data = subset(ForPlotting2, score =="sites"),
+              mapping = aes(x = NMDS1, y = NMDS2),
+              color = "black",
+              alpha = 0)+
+  geom_segment(data=subset(ForPlotting, score == "species"),
+                mapping = aes(x = 0, y = 0, xend = NMDS1,   yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0,
+               alpha = 0)+
+   geom_text(data = subset(ForPlotting, score == "species"),
+             mapping = aes(label = label, x = NMDS1*1.1, y=NMDS2*1.1), alpha = 0)+
+   geom_segment(data=subset(ForPlotting2, score == "env"),
+                 mapping = aes(x = 0, y = 0, xend = NMDS1, yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0.8)+
+   geom_text(data = subset(ForPlotting2, score == "env"),
+             mapping = aes(label = label, x = NMDS1*1.1, y=NMDS2*1.1))+
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", size = 0.8, color = "gray")+
+   geom_vline(aes(xintercept = 0), linetype = "dashed", size = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black")
+   )
+p3
+```
+Now blend into a 3-piece plot
+
+```{r}
+TreeIVOrdination1<-ggarrange(p1,p2,p3,ncol = 1)
+TreeIVOrdination1
+```
+Or plot just sites and env vars together
+
+```{r}
+ggplot()+
+  geom_point(data = subset(ForPlotting2, Score =="sites"),
+              mapping = aes(x = NMDS1, y = NMDS2, color = PlotInfo$Forest),
+              alpha = 0.8)+
+  geom_text_repel(data = subset(ForPlotting, Score =="sites"), mapping = aes(x = NMDS1, y = NMDS2,label = PlotInfo$Plot))+ 
+   geom_segment(data=subset(ForPlotting2, Score == "env"),
+                mapping = aes(x = 0, y = 0, xend = NMDS1,   yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 1,
+               alpha = 0.8)+
+   geom_text(data = subset(ForPlotting2, Score == "env"),
+             mapping = aes(label = Label, x = NMDS1*1.2, y=NMDS2*1.2), alpha = 0.8)+
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", size = 0.8, color = "gray")+
+   geom_vline(aes(xintercept = 0), linetype = "dashed", size = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black"),
+      legend.position = "none")
+   
+
+```
+
+
+

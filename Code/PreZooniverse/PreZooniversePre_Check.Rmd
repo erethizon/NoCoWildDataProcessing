@@ -5,7 +5,10 @@ output: html_notebook
 ## Introduction
 In order to review the images from our game camera exploits, we need to batch load the images and their associated manifest file to the **[Zooniverse](http://www.zooniverse.org)**. Our game cameras are set to take pictures in bursts of 3 shots (3 shots = 1 event) - to help ensure identification of the animal.  Thus, the 3 images should not be treated independently, but really as a single observation or **event**.  
 
-In this step, we will assign each image to an appropriate event. Then we will check to see if any of the events were assigned more than 3 images. This gives us the opportunity to identify and thus avoid uploading batches of images that aren't telling us anything (e.g. 173 pictures of a beech leaf blowing on a branch, 32 images of a camera trapper setting up the camera).
+In this step, we will do some quality checks. They include:
+1. Looking for date-time issues in the set of image files
+2. Assigning each image to an appropriate event. 
+  - Then we will check to see if any of the events were assigned more than 3 images. This gives us the opportunity to identify and thus avoid uploading batches of images that aren't telling us anything (e.g. 173 pictures of a beech leaf blowing on a branch, 32 images of a camera trapper setting up the camera).
 
 After preliminary assignment, we will manually go back to the image folder and look at the images present in each event that has > 6 images assigned to it. We will delete any images that are superfluous, and then re-create an exif metadata file on the remaining images.
 
@@ -13,7 +16,10 @@ Once we have the final set of images for upload and the final exif metadata file
 
 In this code we will thus:
 
- 1. Assign each image name to the appropriate event.
+ 1. Check the range of dates for each camera that was included as part of the upload. If there are camera malfunctions, some dates will be set back to the manufacture default date of the camera. Having such images in the folder can mess up assignment of images to events.
+  - Print the date range for each of the cameras included in the upload
+ 
+ 2. Assign each image name to the appropriate event.
  
   - use the metadata from a folder of images to compare the image time stamps and group images into their respective "events."
   
@@ -21,9 +27,9 @@ In this code we will thus:
   
   - compare the time intervals to a threshold. An event is a set of pictures taken within a time threshold.  We set our cameras to take up to 3 pictures in a bout, and set them with a 1 minute delay before they can take more pictures, so we can use 1 minute as our threshold.
   
-  - We use our custom function `assignEvents()` to complete step 1.
+  - We use our custom function `assignEvents()` to complete step 2.
   
-2. Use the event information generated in step 1 to create:
+3. Use the event information generated in step 2 to create:
   - a summary dataframe that identifies all those events for which there are > 6 images assigned.
   
   - a summary dataframe that identifies the set of cameras and images that need to be checked for possible image removal.
@@ -86,12 +92,21 @@ Exif <- read.csv(exif_file_path) #obviously, put correct file name here
 
 #may throw an error if your connection to the t:drive drops.
 ```
+## Step 1 - Check date ranges for each camera included in the upload
+We'll make use of the function `inspect_Exif_file` to examine the data in this upload batch and return some summary information that will help identify any issues.
 
-## Step 1 - Assign images to events
+```{r}
+data_check <- inspect_Exif_file.R(Exif)
+View(data_check)
+```
+If there are any issues (strange dates, NAs) displayed in the `data_check` data frame they should be checked and addressed before continuing. Otherwise, the `assignEvents` function used below will break.
+
+
+## Step 2 - Assign images to events
 Now assign images to events using assignEvents function (assignEvents.R).  We will need to set the time threshold (default is 1 minute).If you want a different threshold, pass it (an integer of number of seconds) to the assignEvents as the second argument
 
 ```{r}
-Exif<-assignEvents(Exif) #no threshold passed, using default of 60 seconds
+Exif<-assignEvents(Exif, 59) #no threshold passed, using default of 60 seconds
 ```
 
 This completes Step 1.

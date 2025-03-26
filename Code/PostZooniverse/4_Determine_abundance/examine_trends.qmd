@@ -1,0 +1,41 @@
+---
+title: "examine_trends.qmd"
+format: html
+editor: visual
+---
+
+## Intro
+
+set things up
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(ggplot2)
+library(here)
+
+```
+Pull in data on mammals
+
+```{r}
+M <- read.csv(here("Output", "PostZooniverse", "Consensus", "By workflow", "wfn16695_wfv29.1", "NoCoW_class-15-Feb-2024-wfn16695_wfv29.1_consensus.csv"))
+```
+ 
+Now compare by site, year
+
+```{r}
+byYear <- M %>% group_by(year,forest_or_site_name, forest_ecology_plot_number, Final_choice) %>% summarise(
+  mean_per_100_nights = mean(num_per_100_cam_nights, na.rm = T)
+)
+```
+plot
+
+```{r}
+ggplot(byYear, aes(forest_or_site_name, mean_per_100_nights, group = Final_choice))+
+  geom_boxplot()+
+  facet_grid(vars(Final_choice), vars(year))+
+  coord_flip()
+
+```
+
+

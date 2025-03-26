@@ -1,0 +1,106 @@
+---
+title: "Determining-Zooniverse-Uploads"
+format: html
+editor: visual
+---
+
+## Overview
+
+Periodically, we post images to the Zooniverse so that community members can help ID the animals in the photos.
+
+A challenge is that with several-month gaps between episodes of preparing and uploading images, it is difficult given our current file structure.
+
+Each push to the Zooniverse results in a csv file produced by the upload_from_manifest.py script. That resulting csv includes information on:
+
+-   The zooniverse subject number for each set of 3 images
+
+-   The event number assigned when the manifest is created before pushing to the zooniverse
+
+-   The file name for all of the images included in the event
+
+-   The time stamp for the first image in the series of images in each event
+
+-   The camera_sd card combination , camera number, sd card number and event number for each set of images.
+
+This R script reads in such a csv file and returns a list of the unique cam_sd card combinations that were included in the upload.
+
+## Step 1 - Set up the workspace
+
+Load packages and source functions
+
+```{r}
+#| include: false
+rm(list = ls())
+library(tidyverse)
+library(lubridate)
+library(here) #helps keep directory structure clean when using .Rmd files
+library(rstudioapi) #adds functions for user-supplying file paths, etc.
+
+myFunctionPath<-here("Code", "Functions") #shortens path for clearer code
+myFunctions<-list.files(myFunctionPath, pattern = "\\.R") #points to files that need to be sourced
+
+sapply(here("Code", "Functions",myFunctions), source) #sources all of the functions in the Functions folder.
+
+
+```
+
+Set up the path to the csv file and read it in
+
+```{r}
+rstudioapi::showDialog(
+  title = "Let's give R some file information",
+  message = "Navigate to the csv file you wish to review")
+
+csv_file_path<-rstudioapi::selectFile(
+  path = "/Volumes/NoCoWild/",
+  filter = "CSV files (*.csv)",
+  label= "Select desired csv file"
+)
+
+upload <- read.csv(csv_file_path)
+```
+
+## Step 2 - Return list of cameras included in upload and save file.
+
+Find the unique cam_sd values in the file.
+
+```{r}
+cam_list <- unique(upload$CamSD)
+cam_list
+```
+
+Ask user for date of upload
+
+```{r}
+date_of_upload <- rstudioapi::showPrompt("Upload date", "Please enter the date corresponding to this Zooniverse upload. Use the format DD-Mon-YYYY")
+```
+
+Now make a column with the date value that will be joined into a data frame along with the list of cameras.
+
+```{r}
+myL <-length(cam_list)
+date_var <- rep(date_of_upload, myL)
+date_var
+```
+
+Now cbind into data frame
+
+```{r}
+upload_report <- as.data.frame(cbind(date_var, cam_list))
+View(upload_report)
+```
+
+Create a file name to save
+You may need to tweak if you do more than one upload in a day
+
+```{r}
+filename <- paste0("Zooniverse-upload-", date_of_upload, "-report.csv")
+```
+
+Now determine where to save the report (generally it should go in the "Processed" folder for a given year into a folder called "Upload-reports")
+
+```{r}
+save_to_upload_reports_directory(filename)
+```
+
+Great - it works!

@@ -1,0 +1,132 @@
+---
+title: "Relative Abundance"
+format: html
+editor: visual
+---
+
+## Determine Species Diversity and Relative Abundance from the data
+
+Now we will pull in the cleaned file and use it to determine relative abundance.
+
+```{r}
+rm(list = ls())
+library(here)
+library(tidyverse)
+library(lubridate)
+```
+
+Now pull in the data file from the cleaning process (that has camera data joined to it and has been cleaned to species and forest names.)
+
+```{r}
+DF <- read.csv(here("Output", "PostZooniverse", "Consensus", "By workflow", "wfn16695_wfv29.1", "NoCoW_class-15-Feb-2024_wfn16695_wfv29.1_combined.csv"))
+```
+
+Now simplify DF to get rid of some columns I don't need
+
+```{r}
+dump <- c("Num", "Image2", "Image3", "project_lead", "Event", "other_students", "camera_trappers", "project_trap_code", "cam_num.y", "sd_num.y", "round", "phase", "HEXID", "total_images", "bushnell_bat_start_bars", "bushnell_bat_end_bars", "bat_start_percent", "bat_end_percent", "lithium_or_recharge", "tem_logger_num", "snowstake_distance_m", "cam_orientation_degrees", "cam_orientation_string")
+
+DF <- DF %>% select(-all_of(dump))
+```
+
+Now use lubridate to assign date format to some columns
+
+```{r}
+DF$DateTimeOriginal_Img1 <-ymd_hms(DF$DateTimeOriginal_Img1)
+DF$deploy_date <-ymd(DF$deploy_date)
+DF$last_pic_date <-ymd(DF$last_pic_date)
+DF$last_use_date <-ymd(DF$last_use_date)
+DF$collection_date <-ymd(DF$collection_date)
+```
+
+Now let's get rid of "NOTHINGHERE" and "SOMETHINGHERE" as they don't contribute much.
+
+```{r}
+unique(DF$Final_choice)
+dump <- which (DF$Final_choice == "SOMETHINGTHERE" | DF$Final_choice == 
+                 "NOTHINGTHERE")
+DF <- DF[-dump,]
+
+```
+
+Now get rid of humans, mountain lions (suspect) all birds, "reptileoramphibian" and "OTHERDOMESTICSTOCK"
+
+```{r}
+non_mammals <- c("TURKEY", "BLUEJAY", "OWL", "HUMAN", "OTHERBIRD", "GROUSERUFFED", "REPTILEORAMPHIBIAN", "OTHERDOMESTICSTOCK", "GOOSEWILD", "CROWORRAVEN")
+dump <- which(DF$Final_choice %in% non_mammals)
+Mammals <- DF[-dump,]
+unique(Mammals$Final_choice)
+```
+
+Now assign pine martens to fishers, deal with mountain lions
+
+```{r}
+pm <- which(Mammals$Final_choice == "AMERICANPINEMARTEN")
+Mammals$Final_choice[pm] <- "FISHER"
+ml <-which(Mammals$Final_choice == "MOUNTAINLION")
+Mammals$Final_choice[ml] <- "BOBCAT"
+unique(Mammals$Final_choice)
+```
+
+Ok! There's my list of mammals!
+
+Now let's get some summary data by camera and sd card
+
+```{r}
+mam_summary <- Mammals %>% group_by(year, forest_or_site_name, forest_ecology_plot_number, project_name, Cam_SD, Final_choice) %>% summarise(
+  num_animals = length(Final_choice),
+  deploy_date = min(deploy_date),
+  collection_date = max(collection_date),
+  first_photo_date = min(DateTimeOriginal_Img1),
+  last_photo_date = max(DateTimeOriginal_Img1),
+)
+```
+
+Now determine camera nights by subtracting Deploy Date from or Collection Date
+
+```{r}
+
+mam_summary <- mam_summary %>% mutate(
+  cam_nights = as.numeric(collection_date - deploy_date),
+  num_per_100_cam_nights = (num_animals/cam_nights)*100
+)
+
+```
+
+Now assign some groups
+
+```{r}
+mam_summary$group <- NA
+mesocarnivores <- c("BOBCAT", "FOXGRAY", "FOXRED", "FISHER", "RIVEROTTER", "DOMESTICCAT" )
+mesocarns <- which(mam_summary$Final_choice %in% mesocarnivores)
+mam_summary$group[mesocarns] <- "mesocarnivore"
+
+omnis <-c("RACCOON", "OPOSSUM", "SKUNKSTRIPED")
+mam_summary$group[which(mam_summary$Final_choice %in% omnis)] <- "omnivore"
+
+tree_squirrels <- c("SQUIRRELRED", "SQUIRRELGRAY", "SQUIRRELFLYING")
+tsquirrels <-which(mam_summary$Final_choice %in% tree_squirrels)
+mam_summary$group[tsquirrels] <- "tree squirrel"
+small_mammals <- c("CHIPMUNK", "OTHERSMALLMAMMAL")
+smammals <- which(mam_summary$Final_choice %in% small_mammals)
+mam_summary$group[smammals] <- "small mammal"
+
+caniforms <- c("BLACKBEAR", "COYOTE", "DOMESTICDOG")
+Cans <-which(mam_summary$Final_choice %in% caniforms)
+mam_summary$group[Cans] <- "bear or large canid"
+
+deer <-which(mam_summary$Final_choice == "DEERWHITETAILED")
+mam_summary$group[deer] <- "deer"
+
+herbs <- c("RABBIT", "PORCUPINE", "WOODCHUCK", "BEAVER")
+mam_summary$group[which(mam_summary$Final_choice %in% herbs)] <- "small herbivore"
+
+small_carns <- c("MINK", "WEASEL")
+mam_summary$group[which(mam_summary$Final_choice %in% small_carns)] <- "small carnivore"
+```
+
+Write that file - it is the key for id!!!
+
+```{r}
+write.csv(mam_summary,here("Output", "PostZooniverse", "Consensus", "By workflow", "wfn16695_wfv29.1", "NoCoW_class-15-Feb-2024-wfn16695_wfv29.1_consensus.csv"), row.names = F)
+```

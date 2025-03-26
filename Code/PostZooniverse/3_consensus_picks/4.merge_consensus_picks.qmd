@@ -1,0 +1,67 @@
+---
+title: "Merge consensus picks"
+format: html
+editor: visual
+---
+
+## Merge Consensus Picks
+
+During the process to determine consensus picks from zooniverse-identified camera events, I produce the following files in the `3.determine_consensus_picks.Rmd` code:
+
+-   A file in `Output/PostZooniverse/Consensus/Correct` - this should include the correct classifications that had 100% consensus in the Zooniverse ID process
+
+-   A file in `Output/PostZooniverse/Consensus/Needs check` that has images that need to be checked.
+
+-   A checklist file that just lists the image numbers for the events that need to be checked, saved in `Output/PostZooniverse/Consensus/Needs check/Checklists.`
+
+    -   These files have 3 added columns: File_location, Classifier, and Notes
+
+-   A file in which the correct species is assigned in the image files that we are not checking. We extract the subject IDs for all of the cleaned classifications that are Not part of the list that needs to be checked, and save the image numbers as well as the final choice. This file is saved in `Outputs/PostZooniverse/Consensus/Correct/Assigned`
+
+-   For some reason, there are subject IDs from the cleaned classification file that are not accounted for in the Assigned and Needs check categories. They will still need to have final species assignments made. The files with these subjects and image IDs are saved in `Outputs/PostZooniverse/Consensus/Needs check/Last Ones`.These files have many more columns than the others.
+
+There should be one of these files for each of the different Zooniverse workflows. The format for each of these files is a data frame with a column containing the subject ID, some number of columns with image ids for the event, a column for the number of classifications, a column indicating the number of different species that were identified, and, in some cases, a column for the final choice of species.
+
+### Explore file characteristics
+
+Let's open one of each of the 3 output files for a single classification workflow and see how they compare.
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(here)
+```
+
+Now read in one of each of the 3 files
+
+```{r}
+Assigned_path <- here("Output/PostZooniverse/Consensus/Correct/Assigned")
+Needs_check_path <- here("Output/PostZooniverse/Consensus/Needs check/Last Ones")
+Checklist_path <- here("Output/PostZooniverse/Consensus/Needs check/Checklists")
+```
+
+Let's get a list of files in each of these folders:
+
+```{r}
+Assigned_files <- list.files(Assigned_path)
+Needs_check_files <- list.files(Needs_check_path)
+Checklist_files <-list.files(Checklist_path)
+```
+
+Now grab and open the 3 files from a single workflow number and version:
+
+```{r}
+Assigned <- read.csv(here(Assigned_path, Assigned_files[5]))
+Needs_check <- read.csv(here(Needs_check_path, Needs_check_files[4]))
+Checklist <- read.csv(here(Checklist_path, Checklist_files[4]))
+```
+
+Now let's just check a few things about these files: 1. Do any of them have repeats of individual subject ids?
+
+```{r}
+C_summary <- Checklist %>% group_by(subject_ids) %>% summarise(
+  num_choices = length(Final_choice))
+)
+```
+
+For workflow number 9599 version 123.17: Needs_check file has \>1 choice per subject id. Needs to be summarised for checking against actual images as part of `3.determine_consensus_picks.Rmd`

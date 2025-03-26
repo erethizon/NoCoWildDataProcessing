@@ -1,6 +1,8 @@
 ---
 title: "Consensus picks"
 output: html_notebook
+editor_options: 
+  chunk_output_type: inline
 ---
 
 Once we have flattened all of our data, we need to examine it to determine the consensus species ID for each event.
@@ -42,6 +44,8 @@ flat_file_path<-rstudioapi::selectFile(
 Flat <- read.csv(flat_file_path) #obviously, put correct file name here
 
 ```
+
+
 Manage and decompose file name for later use
 
 ```{r}
@@ -223,7 +227,7 @@ filesToCheckSummary<-filesToCheck %>% group_by(subject_ids) %>% reframe(
   Img1 = Img1,
   Img2 = Img2,
   Img3 = Img3,
-  Forest = Forest1,
+  Forest = Forest,
   num_class = num_class,
   num_diff_species = num_diff_species
 )
@@ -311,10 +315,10 @@ for(i in 1:length(Subjects_to_keep)){
   Assigned$Img1[i]<-unique(mySample$Img1)
   Assigned$Img2[i]<-unique(mySample$Img2)
   Assigned$Img3[i]<-unique(mySample$Img3)
-  Assigned$Img4[i]<-unique(mySample$Img4)
-  Assigned$Img5[i]<-unique(mySample$Img5)
-  Assigned$Img6[i]<-unique(mySample$Img6)
-  Assigned$Forest[i]<-unique(mySample$Forest1)
+  #Assigned$Img4[i]<-unique(mySample$Img4)
+  #Assigned$Img5[i]<-unique(mySample$Img5)
+ # Assigned$Img6[i]<-unique(mySample$Img6)
+  Assigned$Forest[i]<-unique(mySample$Forest)
   Assigned$num_class[i]<-unique(mySample$num_class)
   Assigned$num_diff_species[i]<-unique(mySample$num_diff_species)
   Assigned$Final_choice[i]<-unique(mySample$choice[1])
@@ -363,32 +367,32 @@ Now join to species_votes_to_check to see what the prop vote was
 
 ```{r}
 LastOnes <-left_join(WhichOnes, species_votes)
-
+ones_to_check <-unique(LastOnes$subject_ids)
 ```
 Now simplify that file
 
 Create data frame 
 
 ```{r}
-LastToCheck<-data.frame(subject_ids = integer(length(LastOnes)),
-                Img1 = character(length(LastOnes)), 
-                Img2 = character(length(LastOnes)),
-                Img3 = character(length(LastOnes)),
-                Forest = character(length(LastOnes)),
-                num_class = integer(length(LastOnes)),
-                num_diff_species = integer(length(LastOnes)),
-                Final_choice = character(length(LastOnes)))
+LastToCheck<-data.frame(subject_ids = integer(length(ones_to_check)),
+                Img1 = character(length(ones_to_check)), 
+                Img2 = character(length(ones_to_check)),
+                Img3 = character(length(ones_to_check)),
+                Forest = character(length(ones_to_check)),
+                num_class = integer(length(ones_to_check)),
+                num_diff_species = integer(length(ones_to_check)),
+                Final_choice = character(length(ones_to_check)))
 ```
 Now loop
 ```{r}
-ones_to_check <-unique(LastOnes$subject_ids)
-for(i in 1:length(LastOnes)){
+#this loop was not working on 17 March 2025 - fixed it. Problem was that it was not referencing ones_to_check, length 8, but was instead referencing LastOnes, length 89.
+for(i in 1:length(ones_to_check)){
   mySample<-filter(LastOnes, subject_ids == ones_to_check[i])
   LastToCheck$subject_ids[i]<-ones_to_check[i]
   LastToCheck$Img1[i]<-unique(mySample$Img1)
   LastToCheck$Img2[i]<-unique(mySample$Img2)
   LastToCheck$Img3[i]<-unique(mySample$Img3)
-  LastToCheck$Forest[i]<-unique(mySample$Forest1)
+  LastToCheck$Forest[i]<-unique(mySample$Forest)
   LastToCheck$num_class[i]<-unique(mySample$num_class)
   LastToCheck$num_diff_species[i]<-unique(mySample$num_diff_species)
   LastToCheck$Final_choice[i]<-NA
@@ -403,9 +407,10 @@ Now write that file to run check
 ```{r}
 last_ones_to_check<-here("Output", "PostZooniverse", "Consensus", "Needs check", "Last Ones")
 
-LastOnesFile<-paste0(file_name_parts[1], "_", file_name_parts[2],"_", file_name_parts[3], "_lastones.csv")
+LastOnesFile<-paste0(file_name_parts[1], "_", file_name_parts[2],"_", file_name_parts[3], "_lastones_new.csv")
 
-write.csv(LastOnes, paste0(last_ones_to_check,"/", LastOnesFile),row.names = FALSE)
+#on 17 March 2025 I noticed that the write.csv below as saving the LastOnes data frame rather than tthe LastToCheck dataframe. Fixed on 17 March and started resaving these files.
+write.csv(LastToCheck, paste0(last_ones_to_check,"/", LastOnesFile),row.names = FALSE)
 #row.names=FALSE prevents R from adding X column in output df
 ```
 

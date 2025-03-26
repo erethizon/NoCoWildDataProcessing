@@ -1,0 +1,107 @@
+---
+title: "January 2025 Notes"
+format: html
+editor: visual
+---
+
+## Introduction
+
+Digging in again after quite a hiatus. The code starting with `Parse files` below is reproduced exactly from the April-2024.Rmd file.
+
+Let's take stock of where where are in terms of getting images classified properly. These are the workflows, including name, number, and version numbers, present in the "master" classification file through 15 Feb 2024:
+
+| Workflow Name | Workflow Number | Workflow Version(s) | Status |
+|----|----|----|----|
+| Workflow 1 | 9599 | 73.7, 98.10, 100.12, 118.13, 120. 15 | Testing zooniverse |
+| Workflow 1 | 9599 | 121.16 | Nothing useful - in "checked" folder |
+| Workflow 1 | 9599 | 123.17 | **Need to process folder** |
+| Workflow 1.1 | 12161 | 2.2 | Testing zooniverse |
+| Workflow 1.1 | 12161 | 3.3, 5.5 | Nothing useful - in "checked" folder |
+| Workflow 1.1 | 12161 | 6.5 | **Need to process folder** |
+| Team Workflow 1.1 | 12477 | 1.10 | Testing zooniverse folder |
+| Is there an animal - old | 16675 | 12.18, 12.21, 13.23, 14.24, 15.24 | ??? |
+| Species identification | 16695 | 2.20, 3.30, 5.40, 6.40, 7.50, 8.60, 9.70, 10.80, | 2.2 - 10.8, 22.1 in Testing zooniverse folder |
+| Species identification | 16695 | 22.10, 13.30 |  |
+| Species identification | 16695 | 11.8, 29.1 | **Need to process folder** |
+| Species ID internal | 21244 | 13.30 | **Need to process folder** |
+| Is there an animal? | 21527 | 2.90, 2.11, 2.14, 2.20 | Not in classification file |
+
+: Status of image classifications by workflow\
+
+### 24 March 2025
+
+Pickin up from 19 March activity. Doing image ID for those events in the "Last ones" .csv files.
+
+### 19 March 2025
+
+-   Going over images in the wkfl_9599_123.17_lastones_new.csv. Finished that; made sure that the workflow 9599 version 123.17 had 3 files in "By Workflow" folder. These are the three that should be joined to get final species list.
+
+-   Next created corrected "last ones" file for workflow 12161 version 6.5. Went through and did this for each workflow.
+
+### 17 March 2025
+
+-   All files from the 15-Feb-2024 classification have been identified. Now I need code that merges the different files so that I can get the complete list of species identified at each camera event.
+
+    -   Also, need code to randomly select events to check classifications and get a % correct based on what I go manually check
+
+    -   Code for merging IDs needs to also join to code about images (time stamps) and cameras so that we can look at location and time information, and also so that we can assess trapping effort at each camera.
+
+    -   Started on new file in Code/PostZooniverse/3_Consensus_picks/ called `4.merge_consensus_picks.Qmd`
+
+    -   I realized that there was a mistake in the code in `3.determine_consensus_picks.Rmd` such that it was not saving the summary file of the last ones to check (the summary file is the one that is formatted like those in the Assigned and Checklist folders with each unique subject ID and it's associated images but not all of the many columns.
+
+        -   Fixed the code today so that it saves the proper file, and saved the correct file for workflow number 9599 version number 123.17. Need to do the other workflows associated with the NoCoW_class-15-Feb-2024 classification file.
+
+### 25 Feb 2025
+
+-   Working on NoCoW_class-15-Feb-2024-wfn12161_wfv6.5_checklist.csv in the `By workflow` folder to confirm species ID by manually looking at photos on hard drive. Finished going through this file.
+
+-   Now all of the files from the 15-Feb-2024 classification download from zooniverse have been identified.
+
+-   Next is to join them all into one single file! Start that next time I work
+
+### 20 Feb 2025
+
+-   Working on NoCoW_class-15-Feb-2024-wfn12161_wfv6.5_checklist to confirm species ID by manually looking at photos on hard drive. Added a column to indicate the file path to the image, since these images are very old and don't follow the renaming system that Brett and I implemented.
+
+-   Worked on that file for several hours with still more to go. Saved in the `By workflow` folder as `NoCoW_class-15-Feb-2024-wfn12161_wfv6.5_checklist.csv`. Start here again when you come back to the project.
+
+### 30 Jan 2025
+
+-   Working on NoCoW_class-15-Feb-2024-wfn12161_wfv6.5_checklist to confirm species ID by manually looking at photos on hard drive. Added a column to indicate the file path to the image, since these images are very old and don't follow the renaming system that Brett and I implemented.
+
+-   Worked on that file for several hours with still more to go. Saved in the `By workflow` folder as `NoCoW_class-15-Feb-2024-wfn12161_wfv6.5_checklist.csv`. Start here again when you come back to the project.
+
+### Parse files
+
+I downloaded the 'master' classification file on 15 Feb 2024. I wrote a new script (./Code/PostZooniverse/1_Parse_and_Flatten_files/1.Parse_workflows.Rmd) that takes that classification file and subdivides it into the set of all possible workflows and workflow versions, each collected into its own .csv file and each with a metadata file. These are stored in (./Output/PostZooniverse/DFs).
+
+### Flatten Files
+
+I then took each of those files and flattened it, using the code in (./Code/PostZooniverse/1_Parse_and_Flatten_files/2.Flatten_Species_IDs.Rmd). I have not yet dealt with the "Is there an animal" workflows.
+
+I put each flattened file in `./Output/PostZooniverse/Flattened/Species_ID`.
+
+Those files that were clearly zooniverse "test runs" for different workflows (with only up to about 50 events and typically a single classification per event) I moved to a subfolder in that directory called `Testing zooniverse` where they sit, but where I do not need to work with them any further.
+
+I moved the others into a folder called `Check` in the same subdirectory.
+
+I went through all of the files in the `Check` directory using the file `./Code/PostZooniverse/2_Check classifications` and either moved the files into another subdirectory called `Checked` that need no further work because they don't have meaningful data. Those that have data that needs analysis I moved into a subdirectory called `need to process`. On April 4, 2024, this folder contains 5 data files of flattened classifications along with the metadata file for each for a total of 10 files in the subdirectory.
+
+### Determine consensus picks
+
+Next, I opened the file `./Code/PostZooniverse/3_Consensus_picks/3.determine_consensus_picks.Rmd` and used it to start processing each of the 5 files with meaningful data.
+
+The end result is 3 separate output files in three separate directories: `./Output/PostZooniverse/Consensus/Correct` contains files for which there was a single consensus species ID per subject_id `.Output/PostZooniverse/Consensus/Needs check` contains files for which there was not consensus of at least 80% agreement on the species_ID
+
+`.Output/PostZooniverse/Consensus/Needs check/Checklists` contains files that have been reduced to a single row per ambiguous subject and that have a final species ID column. These files can be opened in Excel and filled in with final species ID when going through images.
+
+After exporting the checklists that need to be checked, I also went through the cleaned classifications and grabbed all of the cases for which the propotion of the vote for a particular species was \>= 0.8 and created a new dataframe called Assigned that grabbed a single row for each subject_id and assigned all of the relevant information. Then wrote that file to `./Output/PostZooniverse/Consensus/Correct/Assigned`.
+
+In theory, the subject IDs from the checklist file and the subject ids from the assigned file should add up to all subject ids from the classification file.
+
+When they don't match, I created a DF called LastOnes in the `3.determine_consensus_picks.Rmd` script that shows the data for those subject_IDs that were somehow left out. I need to dig in and figure out how those were missed. In the meantime, I am exporting the "Last Ones" .csv to `./Output/PostZooniverse/Consensus/Needs check/Last Ones`
+
+### Finalizing consensus picks
+
+It is up to a human to go through the (up to) 2 files with inconclusive species identifications to make the final species confirmation by looking back at the acutal images. The finalized checklist and Last Ones csv files should be saved to `./Output/PostZooniverse/Consensus/By workflow/` directory in a unique directory for each workflow number and version. The final assigned csv should be copied to this folder as well.

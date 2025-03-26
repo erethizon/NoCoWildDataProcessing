@@ -1,0 +1,140 @@
+---
+title: "data for olivia"
+format: html
+editor: visual
+---
+
+## intro
+
+Olivia Bernier is going to use some data on deer and small mammal abundance as well as mammal diversity from the forest ecology plots in her forest health SYE project. This is the code to get that data for her.
+
+## set up
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(lubridate)
+library(here)
+```
+
+Read in the csv with the data she needs
+
+```{r}
+DF <- read.csv(here("Output", "PostZooniverse", "Consensus", "By workflow", "wfn16695_wfv29.1", "NoCoW_class-15-Feb-2024-wfn16695_wfv29.1_consensus.csv"))
+```
+
+Subset to just the forests Olivia needs
+
+```{r}
+unique(DF$forest_or_site_name)
+focal <-c("Degrasse", "Donnerville", "Kip Tract", "Peavine", "South Hammond")
+forests <- DF %>% filter(forest_or_site_name %in% focal)
+```
+
+Now get rid of Peyton's Kip Tract survey data
+
+```{r}
+forests <- forests %>% filter(project_name == "North Country Wild")
+```
+
+## species diversity
+
+Now get species richness for each forest plot
+
+```{r}
+div <- forests %>% group_by(year, forest_or_site_name, forest_ecology_plot_number) %>% summarise(
+  mammal_richness = length(unique(Final_choice))
+)
+
+write.csv(div, here("Output", "PostZooniverse", "ForOlivia", "mammal_diversity.csv"), row.names = F)
+write.csv(forests, here("Output", "PostZooniverse", "ForOlivia", "full_forest_data.csv"),row.names = F)
+```
+
+Now get just deer density and small mammal density by camera
+
+```{r}
+deer <- forests %>% filter(group == "deer")
+deer_summary <- deer %>% group_by(year, forest_or_site_name, forest_ecology_plot_number) %>% summarise(
+  mean_deer_per_100_cam_nights = mean(num_per_100_cam_nights, na.rm = T),
+)
+
+smammals <- forests %>% filter(group == "small mammal")
+smammal_summary <- smammals %>% group_by(year, forest_or_site_name, forest_ecology_plot_number) %>% 
+  summarise(
+  mean_small_mammals_per_100_cam_nights = mean(num_per_100_cam_nights, na.rm = T),
+)
+
+squirrels <- forests %>% filter(group == "tree squirrel") 
+sq_summary <- squirrels %>% group_by(year, forest_or_site_name, forest_ecology_plot_number) %>% 
+  summarise(
+  mean_squirrels__per_100_cam_nights = mean(num_per_100_cam_nights, na.rm = T),
+)
+
+deer_small_critters <- left_join(deer_summary, sq_summary)
+deer_small_critters <- left_join(deer_small_critters, smammal_summary)
+
+```
+
+Now add zeros for NA
+
+```{r}
+deer_small_critters[is.na(deer_small_critters)] <- 0
+
+#write file
+write.csv(deer_small_critters, here("Output", "PostZooniverse", "ForOlivia", "deer_small_critter_abundance.csv"), row.names = F)
+```
+
+Now let's organize for vegan
+
+get mean abundance per site per year
+
+```{r}
+div_summary <- forests %>% group_by(year, forest_or_site_name, forest_ecology_plot_number, Final_choice) %>% summarise(
+  N = length(num_per_100_cam_nights),
+  mean_per_100_cam_nights = mean(num_per_100_cam_nights, na.rm = T),
+  sd_per_100_cam_nights = sd(num_per_100_cam_nights, na.rm = T),
+  sem_per_100_cam_nights = sd_per_100_cam_nights/sqrt(N)
+)
+
+write.csv(div_summary, here("Output", "PostZooniverse", "ForOlivia", "mammal_diversity_summary.csv"), row.names = F)
+```
+
+Now see if we can reshape for vegan; start with each year and then average across years
+
+```{r}
+d2021 <-forests %>% filter(year == 2021)
+
+d2021_summary <-d2021 %>% group_by(forest_or_site_name, forest_ecology_plot_number, Final_choice) %>% summarise(
+  mean_per_100_nights = mean(num_per_100_cam_nights)
+)
+
+vegan2021 <- d2021_summary %>% pivot_wider(names_from = Final_choice, values_from = mean_per_100_nights)
+
+vegan2021[is.na(vegan2021)] <- 0
+
+d2022 <-forests %>% filter(year == 2022)
+
+d2022_summary <-d2022 %>% group_by(forest_or_site_name, forest_ecology_plot_number, Final_choice) %>% summarise(
+  mean_per_100_nights = mean(num_per_100_cam_nights)
+)
+
+vegan2022 <- d2022_summary %>% pivot_wider(names_from = Final_choice, values_from = mean_per_100_nights)
+
+vegan2022[is.na(vegan2022)] <- 0
+```
+
+Now get average abunance in 2021, 2022 and use that for vegan
+
+```{r}
+avg_years <- forests %>% filter(year == 2021 | year == 2022)
+
+avg_across_years <- avg_years %>% group_by(forest_or_site_name, forest_ecology_plot_number, Final_choice) %>% summarise(
+  mean_obs_per_100_nights = mean(num_per_100_cam_nights, na.rm = T)
+)
+
+vegan_both_years <- avg_across_years %>% pivot_wider(names_from = Final_choice, values_from = mean_obs_per_100_nights)
+
+vegan_both_years[is.na(vegan_both_years)] <- 0
+
+write.csv(vegan_both_years, here("Output", "PostZooniverse", "ForOlivia", "mammal_data_for_vegan.csv"), row.names = F)
+```

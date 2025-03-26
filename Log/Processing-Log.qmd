@@ -1,0 +1,77 @@
+---
+title: "Processing Log"
+format: html
+editor: visual
+---
+
+## Overview
+
+This log is for maintaining notes on the processing of camera trap images to prepare them for upload to zooniverse.
+
+Each log entry should have a three-hashtag level heading that includes the date that the work is being done and a cross-reference section using the date so that links can be made to that specific entry. See the first entry below using `Source` view as an example.
+
+Entries should be made in reverse-chronological order (i.e. put new entries at the top right under this section rather than at the bottom of the document.
+
+### 25 March 2025 {#sec-25-Mar-2025}
+
+I had hoped to get back to this in January, but no. Working on getting a few more batches of photos uploaded to the zooniverse from the 2023-2024 photos.
+
+Did 2 batch uploads:
+
+Upload-25-March-2025: C043_SD013, C047_SD035, C048_SD026
+
+Upload-25-March-2025-2: C050_SD087 and C051_SD162
+
+Also ran the `determine-zooniverse-uploads.qmd` code (Code/Helper files/) to see what cameras from 2023-2024 I have now gotten uploaded to zooniverse.
+
+| Camera_SD  | Zooniverse Subject Set name | Date of Upload |
+|------------|-----------------------------|----------------|
+| C043_SD013 | Upload-25-March-2025        | 25 March 2025  |
+| C047_SD035 | Upload-25-March-2025        | 25 March 2025  |
+| C048_SD026 | Upload-25-March-2025        | 25 March 2025  |
+| C050_SD087 | Upload-25-March-2025-2      | 25 March 2025  |
+| C051_SD162 | Upload-25-March-2025-2      | 25 March 2025  |
+| C031_SD032 | Upload-24-Jan-2025          | 25 Jan 2025    |
+| C035_SD161 | Upload-24-Jan-2025          | 25 Jan 2025    |
+| C038_SD001 | Upload-24-Jan-2025          | 25 Jan 2025    |
+| C039_SD062 | Upload-24-Jan-2025          | 25 Jan 2025    |
+| C069_SD091 | Upload-18-March-2024        | 18 March 2024  |
+| C063_SD084 | Upload-18-March-2024        | 18 March 2024  |
+| C059_SD089 | Upload-18-March-2024        | 18 March 2024  |
+| C069_SD060 | Fall 2023                   | 2 Feb 2024     |
+| C063_SD075 | Fall 2023                   | 2 Feb 2024     |
+| C059_SD095 | Fall 2023                   | 2 Feb 2024     |
+| C052_SD007 | Fall 2023                   | 2 Feb 2024     |
+| C051_SD005 | Fall 2023                   | 2 Feb 2024     |
+| C050_SD011 | Fall 2023                   | 2 Feb 2024     |
+| C048_SD006 | Fall 2023                   | 2 Feb 2024     |
+| C047_SD018 | Fall 2023                   | 2 Feb 2024     |
+| C041_SD025 | Fall 2023                   | 2 Feb 2024     |
+| C039_SD083 | Fall 2023                   | 2 Feb 2024     |
+| C038_SD038 | Fall 2023                   | 2 Feb 2024     |
+| C036_SD064 | Fall 2023                   | 2 Feb 2024     |
+| C035_SD077 | Fall 2023                   | 2 Feb 2024     |
+| C028_SD021 | Fall 2023                   | 2 Feb 2024     |
+| C027_SD019 | Fall 2023                   | 2 Feb 2024     |
+
+: 2023-2024 data zooniverse uploads
+
+In the directory that contains all of the images from 2023-2024, I have used the color-coding to indicate which files have been processed and uploaded for zooniverse by marking them with a purple dot.
+
+At the end of my work today, there appear to be 11 camera_sd folders from 2023-2024 still in need of upload. Two are marked with blue dots for some reason that I should have recorded when I last worked on 25 Jan 2025.
+
+### 25 January 2025 {#sec-25-Jan-2025}
+
+Working on preparing images from 2023-2024 year for upload to the Zooniverse.
+
+-   Running scripts in `Code/PreZooniverse/PreZooniversePre-Check.Rmd` and realizing that there are issues with some image date/times in the exif metadata that are causing the `assignEvents` function to break.
+-   Wrote a new function called `inspect_Exif_file` that looks for date-time errors and NA issues in Exif data and returns summary information.
+-   Ran `inspect_Exif_file` and determined the following issues:
+
+1.  C027_SD074 has date issues with some images from 2017 (camera date not working correctly.)
+2.  C041_SD070 has date issue with some images from 2018 (camera date not working correctly).
+3.  C036_SD034 has 14 images with NA for date-time that need to be checked.
+
+For the time being, I removed the images from these 3 cameras from the upload until they can be fixed.
+
+### 

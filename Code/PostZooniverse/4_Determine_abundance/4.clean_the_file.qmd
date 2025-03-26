@@ -1,0 +1,161 @@
+---
+title: "4. Determine abundance"
+format: html
+editor: visual
+---
+
+## Introduction
+
+Once all of the consensus picks have been made for all of the subjects in a workflow, it is time to tie those subjects to the camera trap deployments they are associated with in order to develop relative abundance indices for each species at each location.
+
+Let's set things up
+
+```{r, results = FALSE}
+rm(list = ls())
+library(tidyverse)
+library(lubridate)
+library(googlesheets4)
+library(googledrive)
+library(here)
+
+sheet1 <- "event_assignment_master"
+sheet2 <- "game_camera_deployments"
+```
+
+The first step is to bind together all of the species determinations from a single workflow into a single data frame. This requires loading all of the files from the `Output/PostZooniverse/Consensus/By workflow/` folder for a particular workflow.
+
+```{r}
+Assigned <-read.csv(here("Output","PostZooniverse", "Consensus", "By workflow", "wfn16695_wfv29.1", "NoCoW_class-15-Feb-2024-wfn16695_wfv29.1_assigned.csv"))
+
+Checked <- read.csv(here("Output","PostZooniverse", "Consensus", "By workflow", "wfn16695_wfv29.1", "NoCoW_class-15-Feb-2024-wfn16695_wfv29.1_checked.csv"))
+                    
+LastOnes <- read.csv(here("Output","PostZooniverse", "Consensus", "By workflow", "wfn16695_wfv29.1", "NoCoW_class-15-Feb-2024-wfn16695_wfv29.1_lastones.csv"))
+```
+
+All three follow the same format, so can join them together with rbind
+
+```{r}
+DF <- rbind(Assigned, Checked, LastOnes)
+str(DF)
+```
+
+All of the image names begin with camera and sd card, so we can use that to make a new column of Cam_SD to match to the camera deployment sheet
+
+```{r}
+DF <- DF %>% mutate(
+  Cam_SD = str_sub(Img1, 1,10))
+
+#now move Cam_SD next to subject_ids
+DF <- DF %>% relocate(Cam_SD, .after  = subject_ids)
+summary(DF)
+```
+Now pull in the master google sheet with event assignments and dates/times of first image 
+
+```{r}
+events<-drive_get(sheet1) %>% read_sheet()
+cams <- drive_get(sheet2) %>% read_sheet()
+
+```
+
+Now lets associate date time info from events with DF
+```{r}
+DF <-left_join(DF, events, by = join_by(Img1 == Image1, Cam_SD))
+summary(DF)
+```
+
+
+
+Summarize camera info
+
+```{r}
+cam_summary <- cams %>% group_by(year, Cam_SD) %>% summarise()
+```
+certain camera/sd combinations repeated within between years which can make things confusing (determined by reviewing cam_summary sorted by cam_sd)
+
+```{r}
+repeats <- c("C002_SD007", "C003_SD005", "C028_SD001", "C032_SD026", "C035_SD016", "C036_SD032")
+```
+Now let's assign the year to the various parts:
+
+```{r}
+NoRepeats <- DF %>% filter(!(Cam_SD %in% repeats))
+```
+Now join those with cams
+
+```{r}
+NoRepeats <- left_join(NoRepeats, cams, by = join_by(Cam_SD))
+summary(NoRepeats)
+```
+Now find the repeats
+
+```{r}
+Repeats <- DF %>% filter(Cam_SD %in% repeats)
+```
+
+The dataset includes data from cameras C028_SD001 from 2021 (not 2019), C032_SD026 from 2022 (not 2019) and C036_SD032 from 2022 (not 2019).  So let's get rid of the cameras from 2019 from cams and then do the join
+
+```{r}
+find_cams <- c("C028_SD001", "C032_SD026", "C036_SD032")
+
+cams_in_data <- which(cams$Cam_SD %in% find_cams & cams$year == 2019 )
+cams <- cams[-cams_in_data,]
+```
+Now try to join to DF
+
+```{r}
+DF <- left_join(DF, cams, by = join_by(Cam_SD))
+summary(DF)
+```
+
+
+
+
+
+
+
+
+Now assign the workflow ID and version
+
+```{r}
+DF$workflow1_id <- 16695
+DF$workflow1_version <- 29.1
+```
+
+Now fix species names
+
+```{r}
+unique(DF$Final_choice)
+f<- which(DF$Final_choice == "BEARBLACK")
+DF$Final_choice[f] <- "BLACKBEAR"
+f <- which(DF$Final_choice == "CATDOMESTIC")
+DF$Final_choice[f] <- "DOMESTICCAT"
+
+f<- which(DF$Final_choice == "HIKER")
+DF$Final_choice[f] <- "HUMAN"
+
+f <- which(DF$Final_choice == "MOLE")
+DF$Final_choice[f] <- "OTHERSMALLMAMMAL"
+
+f <- which(DF$Final_choice == "COTTONTAILRABBIT" | DF$Final_choice == "SNOWSHOEHARE")
+ DF$Final_choice[f] <- "RABBIT"
+
+  DF %>% filter(is.na(Final_choice))
+  
+ f <-which(DF$Img1 == "C048_SD006_20231025200620_IMG_0166.JPG")
+ DF$Final_choice[f] == "SQUIRRELRED"
+ 
+ f<-which(DF$Img1 == "C054_SD058_20221003182508_IMG_0049.JPG")
+ 
+  DF$Final_choice[f] == "SQUIRRELRED"
+  fix <- which(DF$subject_ids %in% c(96229384, 88371239))
+  
+  DF$Final_choice[fix]<- "SQUIRRELRED"
+  unique(DF$Final_choice)
+  #now save DF
+  
+  write.csv(DF, here("Output", "PostZooniverse", "Consensus", "By workflow", "wfn16695_wfv29.1", "NoCoW_class-15-Feb-2024_wfn16695_wfv29.1_combined.csv"), row.names = F)
+  
+  summary(DF)
+```
+
+The end result is a cleaned data file in which the choices have been combined with exif data and deployment data for each camera. Next step is to get actually work with the data. See 5.

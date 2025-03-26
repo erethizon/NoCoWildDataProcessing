@@ -1,0 +1,313 @@
+---
+title: "Forest Ordination - Olivia SYE"
+format: html
+editor: visual
+---
+
+## Overview
+We want to do some ordination on olivia's data set to see where her forests fall out. I'm going to go back to some forest ecology code to look at how we do the ordinations and then apply it with the small mammal divesity data
+
+Set up
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(vegan)
+library(here)
+library(ggvegan) #may need to install from github
+library(ggpubr)
+```
+
+Pull in data
+```{r}
+mammals <- read.csv(here("Output", "PostZooniverse", "ForOlivia", "mammal_data_for_vegan.csv"))
+
+#mammal data with values = avg. abundance per 100 camera nights
+
+trees <- read.csv(here("Output", "Olivia", "trees_for_ordination.csv"))
+
+
+```
+## Now do the ordination:
+### Trees
+
+```{r}
+tree_results<-trees[,1:2]
+
+```
+Now use vegan to plot diversity indices
+
+```{r}
+tree_results$SR<-specnumber(trees[,3:23])
+tree_results$simpson<-diversity(trees[,3:23], index = "invsimpson")
+tree_results$shannon<-diversity(trees[,3:23], index = "shannon")
+
+```
+
+Nonmetric multidimensional scaling
+```{r}
+trees.nmds.bray<-metaMDS(trees[,3:23], distance = "bray", k = 2)
+```
+
+View the result
+```{r}
+trees.nmds.bray
+```
+
+Look at goodness of fit:
+```{r}
+gof<-goodness(trees.nmds.bray) #goodness of fit
+plot(trees.nmds.bray, type = "t", main = "goodness of fit")
+points(trees.nmds.bray, display = "sites", cex=gof*100)
+```
+
+View stress plot
+```{r}
+trees.nmds.bray$stress
+```
+Now visualize the result, first with basic plotting functions
+```{r}
+plot1<-ordiplot(trees.nmds.bray, choices = c(1,2))
+plot2<-ordiplot(trees.nmds.bray, type = "t")
+```
+Next, plot with ggplot. Requires ggvegan as well:
+
+```{r}
+#first use autoplot
+autoplot(trees.nmds.bray)
+
+```
+Now use the ggvegan `fortify` function to make a more customizable plot
+
+```{r}
+PlotData<-fortify(trees.nmds.bray)
+ggplot(PlotData, aes(NMDS1,NMDS2,group = score))+
+   geom_text(aes(label=label, color = score))+
+   scale_color_manual(values = c(sites = "brown", species = "green"))+
+   geom_point(aes(color=score, shape =score, size =.1))+
+   scale_color_manual(values = c(sites = "red", species = "black"))
+```
+And let's customize further
+```{r}
+ggplot()+
+   geom_point(data = subset(PlotData, score =="sites"),
+              mapping = aes(x = NMDS1, y = NMDS2),
+              color = "black",
+              alpha = 0.5)+
+   geom_segment(data=subset(PlotData, score == "species"),
+                 mapping = aes(x = 0, y = 0, xend = NMDS1, yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0.8)+
+   geom_text(data = subset(PlotData, score == "species"),
+             mapping = aes(label = label, x = NMDS1*1.1, y=NMDS2*1.1))+
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", size = 0.8, color = "gray")+
+   geom_vline(aes(xintercept = 0), linetype = "dashed", size = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black")
+   )
+   
+                
+```
+
+Now make a two panel plot to reduce complexity
+
+```{r}
+p1<-ggplot()+
+   geom_point(data = subset(PlotData, score =="sites"),
+              mapping = aes(x = NMDS1, y = NMDS2),
+              color = "black",
+              alpha = 0.5)+
+   geom_segment(data=subset(PlotData, score == "species"),
+                mapping = aes(x = 0, y = 0, xend = NMDS1,   yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0,
+               alpha = 0)+
+   geom_text(data = subset(PlotData, score == "species"),
+             mapping = aes(label = label, x = NMDS1*1.1, y=NMDS2*1.1), alpha = 0)+
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", size = 0.8, color = "gray")+
+   geom_vline(aes(xintercept = 0), linetype = "dashed", size = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black")
+   )
+   
+```
+Now plot 2
+```{r}
+p2<-ggplot()+
+   geom_point(data = subset(PlotData, score =="sites"),
+              mapping = aes(x = NMDS1, y = NMDS2),
+              color = "black",
+              alpha = 0)+
+   geom_segment(data=subset(PlotData, score == "species"),
+                 mapping = aes(x = 0, y = 0, xend = NMDS1, yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0.8)+
+   geom_text(data = subset(PlotData, score == "species"),
+             mapping = aes(label = label, x = NMDS1*1.1, y=NMDS2*1.1))+
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", size = 0.8, color = "gray")+
+   geom_vline(aes(xintercept = 0), linetype = "dashed", size = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black")
+   )
+```
+Now get the 2-panel plot using ggpubr
+
+```{r}
+ggarrange(p1,p2,ncol = 1)
+```
+
+### Mammals
+```{r}
+m_results<-mammals[,1:2]
+
+```
+Now use vegan to plot diversity indices
+
+```{r}
+m_results$SR<-specnumber(mammals[,3:25])
+m_results$simpson<-diversity(mammals[,3:25], index = "invsimpson")
+m_results$shannon<-diversity(mammals[,3:25], index = "shannon")
+
+```
+
+Nonmetric multidimensional scaling
+```{r}
+m.nmds.bray<-metaMDS(mammals[,3:25], distance = "bray", k = 2)
+```
+
+View the result
+```{r}
+m.nmds.bray
+```
+
+Look at goodness of fit:
+```{r}
+gof<-goodness(m.nmds.bray) #goodness of fit
+plot(m.nmds.bray, type = "t", main = "goodness of fit")
+points(m.nmds.bray, display = "sites", cex=gof*100)
+```
+
+View stress plot
+```{r}
+m.nmds.bray$stress
+```
+Now visualize the result, first with basic plotting functions
+```{r}
+plot1<-ordiplot(m.nmds.bray, choices = c(1,2))
+plot2<-ordiplot(m.nmds.bray, type = "t")
+```
+Next, plot with ggplot. Requires ggvegan as well:
+
+```{r}
+#first use autoplot
+autoplot(m.nmds.bray)
+
+```
+Now use the ggvegan `fortify` function to make a more customizable plot
+
+```{r}
+MPlotData<-fortify(m.nmds.bray)
+ggplot(MPlotData, aes(NMDS1,NMDS2,group = score))+
+   geom_text(aes(label=label, color = score))+
+   scale_color_manual(values = c(sites = "brown", species = "green"))+
+   geom_point(aes(color=score, shape =score, size =.1))+
+   scale_color_manual(values = c(sites = "red", species = "black"))
+```
+And let's customize further
+```{r}
+ggplot()+
+   geom_point(data = subset(MPlotData, score =="sites"),
+              mapping = aes(x = NMDS1, y = NMDS2),
+              color = "black",
+              alpha = 0.5)+
+   geom_segment(data=subset(MPlotData, score == "species"),
+                 mapping = aes(x = 0, y = 0, xend = NMDS1, yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0.8)+
+   geom_text(data = subset(MPlotData, score == "species"),
+             mapping = aes(label = label, x = NMDS1*1.1, y=NMDS2*1.1))+
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", size = 0.8, color = "gray")+
+   geom_vline(aes(xintercept = 0), linetype = "dashed", size = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black")
+   )
+   
+                
+```
+
+Now make a two panel plot to reduce complexity
+
+```{r}
+p1<-ggplot()+
+   geom_point(data = subset(MPlotData, score =="sites"),
+              mapping = aes(x = NMDS1, y = NMDS2),
+              color = "black",
+              alpha = 0.5)+
+   geom_segment(data=subset(MPlotData, score == "species"),
+                mapping = aes(x = 0, y = 0, xend = NMDS1,   yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0,
+               alpha = 0)+
+   geom_text(data = subset(MPlotData, score == "species"),
+             mapping = aes(label = label, x = NMDS1*1.1, y=NMDS2*1.1), alpha = 0)+
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", size = 0.8, color = "gray")+
+   geom_vline(aes(xintercept = 0), linetype = "dashed", size = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black")
+   )
+   
+```
+Now plot 2
+```{r}
+p2<-ggplot()+
+   geom_point(data = subset(MPlotData, score =="sites"),
+              mapping = aes(x = NMDS1, y = NMDS2),
+              color = "black",
+              alpha = 0)+
+   geom_segment(data=subset(MPlotData, score == "species"),
+                 mapping = aes(x = 0, y = 0, xend = NMDS1, yend=NMDS2),
+                 arrow = arrow(length = unit(0.015, "npc"),
+               type = "closed"),
+                 color = "darkgray",
+                 size = 0.8)+
+   geom_text(data = subset(MPlotData, score == "species"),
+             mapping = aes(label = label, x = NMDS1*1.1, y=NMDS2*1.1))+
+   geom_abline(intercept = 0, slope = 0, linetype = "dashed", size = 0.8, color = "gray")+
+   geom_vline(aes(xintercept = 0), linetype = "dashed", size = 0.8, color = "gray")+
+   theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black")
+   )
+```
+Now get the 2-panel plot using ggpubr
+
+```{r}
+ggarrange(p1,p2,ncol = 1)
+```
+

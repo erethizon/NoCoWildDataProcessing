@@ -43,6 +43,7 @@ myFunctionPath<-here("Code", "Functions") #shortens path for clearer code
 myFunctions<-list.files(myFunctionPath, pattern = "\\.R") #points to files that need to be sourced
 
 sapply(here("Code", "Functions",myFunctions), source) #sources all of the functions in the Functions folder.
+
 ```
 Set up the path to the folder containing the images and the folder containing the metadata file.
 
@@ -137,7 +138,7 @@ Manifest is our desired output, and it gets saved in Output -> PreZooniverse -> 
 ```{r}
 Man_file<-str_replace(FilePrefix, "exif_", "manifest_")
 Man_file<-paste0(Man_file, "_", Sys.Date(), ".csv")
-write.csv(Manifest, here("Output", "PreZooniverse", "Manifests", Man_file))
+write.csv(Manifest, here("Output", "PreZooniverse", "Manifests", Man_file), row.names = F)
 ```
 
 ## You did it! Nice job!
