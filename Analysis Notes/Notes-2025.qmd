@@ -6,7 +6,7 @@ editor: visual
 
 ## Introduction
 
-Digging in again after quite a hiatus. The code starting with `Parse files` below is reproduced exactly from the April-2024.Rmd file.
+The code starting with `Parse files` below is reproduced exactly from the April-2024.Rmd file.
 
 Let's take stock of where where are in terms of getting images classified properly. These are the workflows, including name, number, and version numbers, present in the "master" classification file through 15 Feb 2024:
 
@@ -27,6 +27,14 @@ Let's take stock of where where are in terms of getting images classified proper
 | Is there an animal? | 21527 | 2.90, 2.11, 2.14, 2.20 | Not in classification file |
 
 : Status of image classifications by workflow\
+
+### 21 April 2025
+
+Continuing where I left off on 15 April 2025. Worked on NoCoW_class-15-Feb-2024-wfn12161_wfv6.5_lastones_new.csv. Continue with this file when I start up again. But I'm getting really close!
+
+### 15 April 2025
+
+Continuing where I left off on 3 April 2025. Worked on NoCoW_class-15-Feb-2024-wfn12161_wfv6.5_lastones_new.csv. Continue with this file when I start up again.
 
 ### 3 April 2025
 
