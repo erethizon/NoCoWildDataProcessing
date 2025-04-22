@@ -10,3 +10,4 @@
 !/Data/PostZooniverse/workflow_histories.csv/
 *.xlsx
 .DS_Store
+*/.DS_Store
