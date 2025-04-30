@@ -28,6 +28,18 @@ Let's take stock of where where are in terms of getting images classified proper
 
 : Status of image classifications by workflow\
 
+### 30 April 2025
+
+Investigating the reason that the files:
+
+NoCoW_class-15-Feb-2024-wfn21244_wfv13.3_lastones_new.csv
+
+NoCoW_class-15-Feb-2024-wfn16695_wfv11.8_lastones_new.csv
+
+have so many NAs. See file called "check_nas.qmd" in Code/PostZooniverse/Error checking
+
+Didn't finish. Pick up with "check_nas.qmd" next time.
+
 ### 29 April 2025
 
 Finished NoCoW_class-15-Feb-2024-wfn21244_wfv13.3_lastones_new.csv - first row is a subject id with NA for image numbers. Still need to address that. Also need to address why NoCoW_class-15-Feb-2024-wfn16695_wfv11.8_lastones_new.csv has many NAs. That needs to be checked.
