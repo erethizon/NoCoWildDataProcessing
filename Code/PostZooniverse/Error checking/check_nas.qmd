@@ -262,7 +262,7 @@ correct_subjects <- unique(correct_classifications$subject_ids)
 It makes sense that there are no correct classifications, because I'm dealing with data from two files for which we needed to check the classifications. 
 
 
-When num_votes \> num_class you have a situation where there was more than one species detected in an event (typically Gus and one or more camera trappers.). In these cases, propvote will not equal propclass, and the sum of propclass for that subject id will be greater than 1.0 (though the sum of propvote will be equal to 1.)
+When num_votes > num_class you have a situation where there was more than one species detected in an event (typically Gus and one or more camera trappers.). In these cases, propvote will not equal propclass, and the sum of propclass for that subject id will be greater than 1.0 (though the sum of propvote will be equal to 1.)
 
 ```{r}
 MoreThan1<-species_votes %>% filter(num_votes > num_class)
@@ -270,66 +270,28 @@ MoreThan1<-species_votes %>% filter(num_votes > num_class)
 
 They each show the same subject_ids so things look good.
 
-Let's filter species_votes to extract the subjects for which there is more than 1 species but the number of votes = num_class. These will be the cases in which there is one species in the event but there is a discrepancy about what the species is.
+We know there is a discrepancy about what the species is for these files. We just need a better file with correct image numbers to check agains.
+
 
 ```{r}
-subjects_to_check<-species_votes %>% filter(num_votes == num_class & num_diff_species > 1)
 
+filesToCheck<-cleaned_classifications
 ```
 
-Now we want to filter out the cases for which propvote = propclass and propclass is 0.8 or greater or 0.2 or smaller.
 
-```{r}
-species_votes_to_check<- subjects_to_check %>% filter((propvote == propclass) & (between(propclass, 0.21, 0.79)))
-```
-
-Now get the list of the subject ids in species_votes_to_check and use it to filter cleaned_classifications to get the list of subjects, images, events etc. to check.
-
-```{r}
-subjects_to_filter<-unique(species_votes_to_check$subject_ids)
-```
-
-And now filter cleaned_classifications by those data and by the correct data
-
-```{r}
-correct_classifications <-filter(cleaned_classifications, subject_ids %in% correct_subjects)
-filesToCheck<-filter(cleaned_classifications, subject_ids %in% Flat)
-```
-
-write correct file
-
-```{r}
-clean_output<-here("Output", "PostZooniverse", "Consensus", "Correct")
-
-correctFile<-paste0(file_name_parts[1], "_", file_name_parts[2],"_", file_name_parts[3], "_correct.csv")
-
-write.csv(correct_classifications, paste0(clean_output,"/", correctFile), row.names = FALSE)
-#row.names=FALSE prevents R from adding X column in output df
-```
-
-write file that needs checking
-
-```{r}
-needs_checking_output<-here("Output", "PostZooniverse", "Consensus", "Needs check")
-
-needToCheckFile<-paste0(file_name_parts[1], "_", file_name_parts[2],"_", file_name_parts[3], "_needToCheck.csv")
-
-write.csv(filesToCheck, paste0(needs_checking_output,"/", needToCheckFile), row.names = FALSE)
-#row.names=FALSE prevents R from adding X column in output df
-```
 
 And now summarize
 
 ```{r}
 #these may need adjusting based on what columns are present in the particular file
 filesToCheckSummary<-filesToCheck %>% group_by(subject_ids) %>% reframe(
-  workflow_name = workflow_name,
+  workflow_name = as.character(workflow_name),
   workflow_version = workflow_version,
-  choice = choice,
-  Img1 = Img4,
-  Img2 = Img5,
-  Img3 = Img6,
-  Forest = Forest,
+  choice = as.character(choice),
+  Img1 = as.character(Img4),
+  Img2 = as.character(Img5),
+  Img3 = as.character(Img6),
+  #Forest = Forest,
   num_class = num_class,
   num_diff_species = num_diff_species
 )
@@ -341,27 +303,29 @@ Now loop through filesToCheck to grab just the first instance of each subject id
 Make data frame to put results in
 
 ```{r}
-Subjects<-unique(filesToCheckSummary$subject_ids)
+NewSubjects<-unique(filesToCheckSummary$subject_ids)
 
-Checklist<-data.frame(subject_ids = integer(length(Subjects)),
-                      Img1 = character(length(Subjects)), 
-                      Img2 = character(length(Subjects)), 
-                      Img3 = character(length(Subjects)),
-                      Forest = character(length(Subjects)),
-                      num_class = integer(length(Subjects)),
-                      num_diff_species = integer(length(Subjects)))
+Checklist<-data.frame(subject_ids = integer(length(NewSubjects)),
+                      # workflow_name = character(length(NewSubjects)),
+                      # workflow_version = numeric(length(NewSubjects)),
+                      Img1 = character(length(NewSubjects)), 
+                      Img2 = character(length(NewSubjects)), 
+                      Img3 = character(length(NewSubjects)),
+                      num_class = integer(length(NewSubjects)),
+                      num_diff_species = integer(length(NewSubjects)))
 ```
 
 Now loop
 
 ```{r}
-for(i in 1:length(Subjects)){
-  mySample<-filter(filesToCheckSummary, subject_ids == Subjects[i])
-  Checklist$subject_ids[i]<-Subjects[i]
+for(i in 1:length(NewSubjects)){
+  mySample<-filter(filesToCheckSummary, subject_ids == NewSubjects[i])
+  Checklist$subject_ids[i]<-NewSubjects[i]
+  # Checklist$workflow_name[i] <-unique(mySample$workflow_name)
+  # Checklist$workflow_version <-unique(mySample$workflow_version)
   Checklist$Img1[i]<-unique(mySample$Img1)
   Checklist$Img2[i]<-unique(mySample$Img2)
   Checklist$Img3[i]<-unique(mySample$Img3)
-  Checklist$Forest[i]<-unique(mySample$Forest)
   Checklist$num_class[i]<-unique(mySample$num_class)
   Checklist$num_diff_species[i]<-unique(mySample$num_diff_species)
 
@@ -372,161 +336,18 @@ Add column for final species ID
 
 ```{r}
 Checklist$Final_choice <- NA
+Checklist$File_location <- NA
+Checklist$Classifier <- NA
+Checklist$Notes <- NA
 ```
 
 Now save
 
 ```{r}
 
-checklist_output<-here("Output", "PostZooniverse", "Consensus", "Needs check", "Checklists")
-
-ChecklistFile<-paste0(file_name_parts[1], "_", file_name_parts[2],"_", file_name_parts[3], "_checklist.csv")
-
-write.csv(Checklist, paste0(checklist_output,"/", ChecklistFile),row.names = FALSE)
+write.csv(Checklist, here("Output/PostZooniverse/Consensus/By workflow/wfv11.8_wfv13.3_have_nas.csv"),row.names = FALSE)
 #row.names=FALSE prevents R from adding X column in output df
 
 ```
 
-Now we need to assign the correct species for the files that we are not checking: Extract from cleaned classifications all of the subject ids that are NOT part of the list that needs to be checked:
-
-```{r}
-Subjects_to_keep<-species_votes %>% filter(propvote >= 0.8)
-Subjects_to_keep <-Subjects_to_keep$subject_ids
-
-
-NeedAssignment<-cleaned_classifications %>% filter(subject_ids %in% Subjects_to_keep)
-```
-
-Now create data frame to accept final assignments
-
-```{r}
-Assigned<-data.frame(subject_ids = integer(length(Subjects_to_keep)),
-                Img1 = character(length(Subjects_to_keep)), 
-                Img2 = character(length(Subjects_to_keep)),
-                Img3 = character(length(Subjects_to_keep)),
-                Img4 = character(length(Subjects_to_keep)), 
-                Img5 = character(length(Subjects_to_keep)),
-                Img6 = character(length(Subjects_to_keep)),
-                Forest = character(length(Subjects_to_keep)),
-                num_class = integer(length(Subjects_to_keep)),
-                num_diff_species = integer(length(Subjects_to_keep)),
-                Final_choice = character (length(Subjects_to_keep)))
-```
-
-Now loop
-
-```{r}
-NeedAssignment$choice<-as.character(NeedAssignment$choice)
-for(i in 1:length(Subjects_to_keep)){
-  mySample<-filter(NeedAssignment, subject_ids == Subjects_to_keep[i])
-  Assigned$subject_ids[i]<-Subjects_to_keep[i]
-  Assigned$Img1[i]<-unique(mySample$Img1)
-  Assigned$Img2[i]<-unique(mySample$Img2)
-  Assigned$Img3[i]<-unique(mySample$Img3)
-  #Assigned$Img4[i]<-unique(mySample$Img4)
-  #Assigned$Img5[i]<-unique(mySample$Img5)
- # Assigned$Img6[i]<-unique(mySample$Img6)
-  Assigned$Forest[i]<-unique(mySample$Forest)
-  Assigned$num_class[i]<-unique(mySample$num_class)
-  Assigned$num_diff_species[i]<-unique(mySample$num_diff_species)
-  Assigned$Final_choice[i]<-unique(mySample$choice[1])
- 
-}
-```
-
-Now save
-
-```{r}
-assigned_output<-here("Output", "PostZooniverse", "Consensus", "Correct", "Assigned")
-
-assignedFile<-paste0(file_name_parts[1], "_", file_name_parts[2],"_", file_name_parts[3], "_assigned.csv")
-
-write.csv(Assigned, paste0(assigned_output,"/", assignedFile),row.names = FALSE)
-#row.names=FALSE prevents R from adding X column in output df
-
-```
-
-## Do final check to make sure that all subject ids are covered
-
-The Checklist output file and the Assigned output files together should include all of the subject_ids that are present in the original classification file.
-
-Let's to a test to make sure.
-
-First, extract the list of subject_ids in the flattened file, the assigned file and the checklist file:
-
-```{r}
-All_subjects <-unique(Flat$subject_ids)
-Assigned_subjects<-unique(Assigned$subject_ids)
-Checklist_subjects <- unique(Checklist$subject_ids)
-```
-
-Next, append the subjects from Assigned and Checklist together
-
-```{r}
-Account_for <- c(Assigned_subjects, Checklist_subjects)
-```
-
-Then find the elements of all subjects that are not present in account for
-
-```{r}
-StillNeedToCheck <- setdiff(All_subjects, Account_for)
-```
-
-And look at those subjects in the main data frame
-
-```{r}
-WhichOnes <- cleaned_classifications %>% filter(subject_ids %in% StillNeedToCheck)
-```
-
-Now join to species_votes_to_check to see what the prop vote was
-
-```{r}
-LastOnes <-left_join(WhichOnes, species_votes)
-ones_to_check <-unique(LastOnes$subject_ids)
-```
-
-Now simplify that file
-
-Create data frame
-
-```{r}
-LastToCheck<-data.frame(subject_ids = integer(length(ones_to_check)),
-                Img1 = character(length(ones_to_check)), 
-                Img2 = character(length(ones_to_check)),
-                Img3 = character(length(ones_to_check)),
-                Forest = character(length(ones_to_check)),
-                num_class = integer(length(ones_to_check)),
-                num_diff_species = integer(length(ones_to_check)),
-                Final_choice = character(length(ones_to_check)))
-```
-
-Now loop
-
-```{r}
-#this loop was not working on 17 March 2025 - fixed it. Problem was that it was not referencing ones_to_check, length 8, but was instead referencing LastOnes, length 89.
-for(i in 1:length(ones_to_check)){
-  mySample<-filter(LastOnes, subject_ids == ones_to_check[i])
-  LastToCheck$subject_ids[i]<-ones_to_check[i]
-  LastToCheck$Img1[i]<-unique(mySample$Img1)
-  LastToCheck$Img2[i]<-unique(mySample$Img2)
-  LastToCheck$Img3[i]<-unique(mySample$Img3)
-  LastToCheck$Forest[i]<-unique(mySample$Forest)
-  LastToCheck$num_class[i]<-unique(mySample$num_class)
-  LastToCheck$num_diff_species[i]<-unique(mySample$num_diff_species)
-  LastToCheck$Final_choice[i]<-NA
- 
-}
-```
-
-Now write that file to run check
-
-```{r}
-last_ones_to_check<-here("Output", "PostZooniverse", "Consensus", "Needs check", "Last Ones")
-
-LastOnesFile<-paste0(file_name_parts[1], "_", file_name_parts[2],"_", file_name_parts[3], "_lastones_new.csv")
-
-#on 17 March 2025 I noticed that the write.csv below as saving the LastOnes data frame rather than tthe LastToCheck dataframe. Fixed on 17 March and started resaving these files.
-write.csv(LastToCheck, paste0(last_ones_to_check,"/", LastOnesFile),row.names = FALSE)
-#row.names=FALSE prevents R from adding X column in output df
-```
-
+N

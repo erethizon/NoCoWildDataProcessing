@@ -28,6 +28,12 @@ Let's take stock of where where are in terms of getting images classified proper
 
 : Status of image classifications by workflow\
 
+### 1 May 2025
+
+Picked up with "check_nas.qmd" from 30 April. Saved new checklist file called "wf 11.8_wfv13.3_have_nas.csv" in `Output/PostZooniverse/Consensus/By workflow` and this is the file I will check the final classification and then merge with the rest of the consensus files.
+
+Worked on checking images in "wf 11.8_wfv13.3_have_nas.csv" and got through a bit more than half.
+
 ### 30 April 2025
 
 Investigating the reason that the files:
