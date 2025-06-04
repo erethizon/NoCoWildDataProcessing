@@ -22,46 +22,40 @@ During the process to determine consensus picks from zooniverse-identified camer
 
 There should be one of these files for each of the different Zooniverse workflows. The format for each of these files is a data frame with a column containing the subject ID, some number of columns with image ids for the event, a column for the number of classifications, a column indicating the number of different species that were identified, and, in some cases, a column for the final choice of species.
 
-### Explore file characteristics
+I have combined all of the files for each classification and workflow in the folder `Output/PostZooniverse/Consensus/By workflow/` that now contains all of the files for each workflow number & workflow version combination.
 
-Let's open one of each of the 3 output files for a single classification workflow and see how they compare.
+### Combine files per workflow
+
+Let's now go to a single workflow number and version and combine all of the files together. To do so, we need to:
+
+1.  Assign the folder name
+2.  List the files in the folder
+3.  Read the column names for each file and see that they are the same between files
+4.  Read in each file; add columnn indicating the original filename, the workflow number and workflow version
+5.  Append the files together into one master data frame for that particular workflow version and number.
+
+### Let's go
+
+#### Set things up
 
 ```{r}
 rm(list = ls())
-library(tidyverse)
 library(here)
+library(tidyverse)
+
 ```
 
-Now read in one of each of the 3 files
+Set up the path to the desired folder
 
 ```{r}
-Assigned_path <- here("Output/PostZooniverse/Consensus/Correct/Assigned")
-Needs_check_path <- here("Output/PostZooniverse/Consensus/Needs check/Last Ones")
-Checklist_path <- here("Output/PostZooniverse/Consensus/Needs check/Checklists")
+rstudioapi::showDialog( title = "Let's give R some file information", message = "Select the directory containing the classfication files you wish to use")
+
+outputs_path <- paste0(here(),"/Output/PostZooniverse/Consensus")
+folder_path <-rstudioapi::selectDirectory(path = outputs_path,  label= "Select desired folder")
 ```
 
-Let's get a list of files in each of these folders:
+Now get a list of the files in that folder
 
 ```{r}
-Assigned_files <- list.files(Assigned_path)
-Needs_check_files <- list.files(Needs_check_path)
-Checklist_files <-list.files(Checklist_path)
+myFiles <- list.files(path = folder_path, pattern = ".csv")
 ```
-
-Now grab and open the 3 files from a single workflow number and version:
-
-```{r}
-Assigned <- read.csv(here(Assigned_path, Assigned_files[5]))
-Needs_check <- read.csv(here(Needs_check_path, Needs_check_files[4]))
-Checklist <- read.csv(here(Checklist_path, Checklist_files[4]))
-```
-
-Now let's just check a few things about these files: 1. Do any of them have repeats of individual subject ids?
-
-```{r}
-C_summary <- Checklist %>% group_by(subject_ids) %>% summarise(
-  num_choices = length(Final_choice))
-)
-```
-
-For workflow number 9599 version 123.17: Needs_check file has \>1 choice per subject id. Needs to be summarised for checking against actual images as part of `3.determine_consensus_picks.Rmd`
