@@ -1,4 +1,5 @@
 ---
+many---
 title: "Merge consensus picks"
 format: html
 editor: visual
@@ -42,7 +43,8 @@ Let's now go to a single workflow number and version and combine all of the file
 rm(list = ls())
 library(here)
 library(tidyverse)
-source(here())
+library(svDialogs)
+
 
 myFunctions<-list.files(here("Code/Functions"), pattern = "R") 
 #points to files that need to be sourced
@@ -50,6 +52,8 @@ myFunctions<-list.files(here("Code/Functions"), pattern = "R")
 sapply(here("Code/Functions", myFunctions), source) #sources all of the functions in the Functions folder.
 
 ```
+
+## Option 1. All the files you need are in a single directory
 
 Set up the path to the desired folder
 
@@ -66,33 +70,62 @@ Now get a list of the files in that folder
 myFiles <- list.files(path = folder_path, pattern = ".csv")
 ```
 
+## Option 2 - your files are in different directories for some reason
+
+```{r, include = FALSE}
+#determine how many files we will be using
+user.input <-svDialogs::dlgInput(message = "How many files are you going to compare?")
+num_files <- as.numeric(user.input$res)
+```
+
+Now loop through asking the user to find the files
+
+```{r, include = FALSE}
+myFilePaths <- vector(length = num_files)
+#now loop to get each file 
+for (i in 1:num_files){
+  filePath <- choose_file()
+  myFilePaths[i] <- filePath
+}
+
+myFiles <- vector(length = num_files)
+for(i in 1:num_files){
+  myFiles[i]<-basename(myFilePaths[i])
+}
+```
+
+## Now compare column names - using option 1
+
 Read the column names and see that they are the same between files
 
-I created a function called `col_names_to_List` that returns a list in which each element is a vector with all of the column names (the 'header') from each file in the directory.
+I created a function called `col_names_to_List_one_diretory` that returns a list in which each element is a vector with all of the column names (the 'header') from each file in the directory.
 
-I created a second function called `compare_column_names` that takes the list and a vector of file names and returns a data frame indicating, for each pair of files, if all of the column names are the same or not.
+I created a second function called `col_names_to_List_many_directories` that returns a list in which each element is a vector with all of the column names (the 'header') from each file you are working with, when the files are not all in the same directory (option 2 above)
 
-We can use these two functions to run a check before combining data from multiple files.
+I created a third function called `compare_column_names` that takes the list and a vector of file names and returns a data frame indicating, for each pair of files, if all of the column names are the same or not.
+
+We can use these functions to run a check before combining data from multiple files.
 
 ```{r}
-myList <- col_names_to_List(folder_path, myFiles)
+myList <- col_names_to_List_one_directory(folder_path, myFiles)
 fileComparison <- compare_column_names(myList, myFiles)
 View(fileComparison)
 ```
 
 Ok. In this case, all of the column names are the same. Next I would like to iterate through opening each file, adding a column name for workflow_version_number and filename and then combining the rows from each file all into one large data frame.
 
-Let's give it a whirl.
-
-Step one. Open first file
+## Now compare column names - using option 2
 
 ```{r}
-df <- read.csv(paste0(folder_path,"/", myFiles[1]), stringsAsFactors = T)
-df$wfv_wfn <- basename(folder_path)
-df$filename <- myFiles[1]
+myList <- col_names_to_List_many_directories(myFilePaths)
+fileComparison <- compare_column_names(myList, myFiles)
+View(fileComparison)
 ```
 
-Make it a loop
+
+
+
+Let's give it a whirl. Open files
 
 ```{r}
 for(i in 1:length(myFiles)){
@@ -108,10 +141,10 @@ tempDF$filename <- myFiles[i]
 ```
 
 ### subproblem
+
 I realized while working through wfn16695_wfv11.8 first that there was a discrepency in column names, as is seen below.
 
-Once I fixed the discrepency, which I did in R so that I would have a record (vs. just changing a file in excel), I re-ran my custom functions to compare and then combine data frames and realized that the second file in the directory does not have all of its species assigned, so I am going to do that now.
-### Save output dataframe
+Once I fixed the discrepency, which I did in R so that I would have a record (vs. just changing a file in excel), I re-ran my custom functions to compare and then combine data frames and realized that the second file in the directory does not have all of its species assigned, so I am going to do that now. \### Save output dataframe
 
 Now save the output dataframe
 
@@ -124,7 +157,6 @@ myfile <- paste0(
 write.csv(output_df, myfile, row.names = FALSE)
 ```
 
-
 Now repeat for each different workflow and version.
 
 With wfn_16695_wfv11.8, there is a discrepency in that for some rows, the images are img1, img2, and img3 and for others they are img4, img5, img6. Let's fix
@@ -132,7 +164,9 @@ With wfn_16695_wfv11.8, there is a discrepency in that for some rows, the images
 ```{r}
 fix_df <- read.csv(here(paste0(folder_path, "/", myFiles[1])))
 ```
+
 Find those rows for which Img1, Img2 and Img3 are NA
+
 ```{r}
 fix_rows <- which(is.na(fix_df$Img1))
 
@@ -142,17 +176,20 @@ fix_df$Img3[fix_rows] <- fix_df$Img6[fix_rows]
 ```
 
 Now check if any of the Img1, Img2, Img3 columns are NA
+
 ```{r}
  sum(!is.na(fix_df$Img1))
 sum(!is.na(fix_df$Img2))
 sum(!is.na(fix_df$Img3))
 
 ```
+
 All columns have an image for Img1, so I can now get rid of columns Img4:Img6
 
 ```{r}
 fix_df <- fix_df |> select(-(Img4:Img6))
 ```
+
 Now create new subdirectory and write fix_df and second, correct file to it.
 
 ```{r}
@@ -164,13 +201,9 @@ write.csv(fix_df, here(paste0(folder_path,"/Use_these/",myFiles[1], "_fixed.csv"
 ```
 
 Now copy the second file to that folder
+
 ```{r}
 file.copy(from = here(paste0(folder_path,"/", myFiles[2])), to = here(paste0(folder_path,"/Use_these/", myFiles[2])))
 ```
+
 Now compare the fixed files. Start again up top, but point to the "Use_these"folder as the base folder.
-
-
-
-
-
-

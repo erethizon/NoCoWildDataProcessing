@@ -48,6 +48,10 @@ Let's take stock of where where are in terms of getting images classified proper
 
 Continued working on `Code/PostZooniverse/3_Consensus_picks/4.merge_consensus_picks.qmd` to begin merging files.
 
+wrote two helper functions as described.
+
+
+
 ### 4 June 2025 afternoon
 
 Taking stock of where things are at. Building a table with locations of the files we need to combine to get the overall species identifications for all of the camera trap data to date. I am not including workflows related to "Is there an animal" or related to Humans:
