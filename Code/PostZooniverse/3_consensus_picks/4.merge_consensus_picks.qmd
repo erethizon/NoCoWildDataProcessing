@@ -107,6 +107,12 @@ tempDF$filename <- myFiles[i]
 }
 ```
 
+### subproblem
+I realized while working through wfn16695_wfv11.8 first that there was a discrepency in column names, as is seen below.
+
+Once I fixed the discrepency, which I did in R so that I would have a record (vs. just changing a file in excel), I re-ran my custom functions to compare and then combine data frames and realized that the second file in the directory does not have all of its species assigned, so I am going to do that now.
+### Save output dataframe
+
 Now save the output dataframe
 
 ```{r}
@@ -117,3 +123,54 @@ myfile <- paste0(
 
 write.csv(output_df, myfile, row.names = FALSE)
 ```
+
+
+Now repeat for each different workflow and version.
+
+With wfn_16695_wfv11.8, there is a discrepency in that for some rows, the images are img1, img2, and img3 and for others they are img4, img5, img6. Let's fix
+
+```{r}
+fix_df <- read.csv(here(paste0(folder_path, "/", myFiles[1])))
+```
+Find those rows for which Img1, Img2 and Img3 are NA
+```{r}
+fix_rows <- which(is.na(fix_df$Img1))
+
+fix_df$Img1[fix_rows] <- fix_df$Img4[fix_rows]
+fix_df$Img2[fix_rows] <- fix_df$Img5[fix_rows]
+fix_df$Img3[fix_rows] <- fix_df$Img6[fix_rows]
+```
+
+Now check if any of the Img1, Img2, Img3 columns are NA
+```{r}
+ sum(!is.na(fix_df$Img1))
+sum(!is.na(fix_df$Img2))
+sum(!is.na(fix_df$Img3))
+
+```
+All columns have an image for Img1, so I can now get rid of columns Img4:Img6
+
+```{r}
+fix_df <- fix_df |> select(-(Img4:Img6))
+```
+Now create new subdirectory and write fix_df and second, correct file to it.
+
+```{r}
+ifelse(!dir.exists(paste0(folder_path,"/Use_these")), dir.create(paste0(folder_path,"/Use_these")), "Folder exists already")
+#checks to see if a folder called "Use_these" exists in the directory, and, if it does not, creates it.
+
+write.csv(fix_df, here(paste0(folder_path,"/Use_these/",myFiles[1], "_fixed.csv")), row.names = FALSE)
+
+```
+
+Now copy the second file to that folder
+```{r}
+file.copy(from = here(paste0(folder_path,"/", myFiles[2])), to = here(paste0(folder_path,"/Use_these/", myFiles[2])))
+```
+Now compare the fixed files. Start again up top, but point to the "Use_these"folder as the base folder.
+
+
+
+
+
+
