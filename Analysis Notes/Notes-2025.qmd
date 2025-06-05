@@ -44,7 +44,7 @@ Let's take stock of where where are in terms of getting images classified proper
 
 ## Status of image classifications by workflowAdd commentMore actions
 
-### 5 June 2025 morning
+### 5 June 2025 
 
 Continued working on `Code/PostZooniverse/3_Consensus_picks/4.merge_consensus_picks.qmd` to begin merging files.
 

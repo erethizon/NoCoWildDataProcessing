@@ -8,19 +8,19 @@ editor: visual
 
 I have combined all of the files for each classification and workflow in the folder `Output/PostZooniverse/Consensus/By workflow/` that now contains all of the files for each workflow number & workflow version combination. The files originate from the following locations:
 
-During the process to determine consensus picks from zooniverse-identified camera events, I produce the following files in the `3.determine_consensus_picks.Rmd` code:
+-   During the process to determine consensus picks from zooniverse-identified camera events, I produce the following files in the `3.determine_consensus_picks.Rmd` code:
 
--   A file in `Output/PostZooniverse/Consensus/Correct` - this should include the correct classifications that had 100% consensus in the Zooniverse ID process
+    -   A file in `Output/PostZooniverse/Consensus/Correct` - this should include the correct classifications that had 100% consensus in the Zooniverse ID process
 
--   A file in `Output/PostZooniverse/Consensus/Needs check` that has images that need to be checked.
+    -   A file in `Output/PostZooniverse/Consensus/Needs check` that has images that need to be checked.
 
--   A checklist file that just lists the image numbers for the events that need to be checked, saved in `Output/PostZooniverse/Consensus/Needs check/Checklists.`
+    -   A checklist file that just lists the image numbers for the events that need to be checked, saved in `Output/PostZooniverse/Consensus/Needs check/Checklists.`
 
     -   These files have 3 added columns: File_location, Classifier, and Notes
 
--   A file in which the correct species is assigned in the image files that we are not checking. We extract the subject IDs for all of the cleaned classifications that are Not part of the list that needs to be checked, and save the image numbers as well as the final choice. This file is saved in `Outputs/PostZooniverse/Consensus/Correct/Assigned`
+    -   A file in which the correct species is assigned in the image files that we are not checking. We extract the subject IDs for all of the cleaned classifications that are Not part of the list that needs to be checked, and save the image numbers as well as the final choice. This file is saved in `Outputs/PostZooniverse/Consensus/Correct/Assigned`
 
--   For some reason, there are subject IDs from the cleaned classification file that are not accounted for in the Assigned and Needs check categories. They will still need to have final species assignments made. The files with these subjects and image IDs are saved in `Outputs/PostZooniverse/Consensus/Needs check/Last Ones`.These files have many more columns than the others.
+    -   For some reason, there are subject IDs from the cleaned classification file that are not accounted for in the Assigned and Needs check categories. They will still need to have final species assignments made. The files with these subjects and image IDs are saved in `Outputs/PostZooniverse/Consensus/Needs check/Last Ones`.These files have many more columns than the others.
 
 There should be one of these files for each of the different Zooniverse workflows. The format for each of these files is a data frame with a column containing the subject ID, some number of columns with image ids for the event, a column for the number of classifications, a column indicating the number of different species that were identified, and, in some cases, a column for the final choice of species.
 
@@ -38,16 +38,22 @@ Let's now go to a single workflow number and version and combine all of the file
 
 #### Set things up
 
-```{r}
+```{r,include=FALSE}
 rm(list = ls())
 library(here)
 library(tidyverse)
+source(here())
+
+myFunctions<-list.files(here("Code/Functions"), pattern = "R") 
+#points to files that need to be sourced
+
+sapply(here("Code/Functions", myFunctions), source) #sources all of the functions in the Functions folder.
 
 ```
 
 Set up the path to the desired folder
 
-```{r}
+```{r, include = FALSE}
 rstudioapi::showDialog( title = "Let's give R some file information", message = "Select the directory containing the classfication files you wish to use")
 
 outputs_path <- paste0(here(),"/Output/PostZooniverse/Consensus")
@@ -62,18 +68,52 @@ myFiles <- list.files(path = folder_path, pattern = ".csv")
 
 Read the column names and see that they are the same between files
 
-Let's write a function that loops through all the files, saves the first row of each as a vector, and then compares to see if they are all the same.
+I created a function called `col_names_to_List` that returns a list in which each element is a vector with all of the column names (the 'header') from each file in the directory.
+
+I created a second function called `compare_column_names` that takes the list and a vector of file names and returns a data frame indicating, for each pair of files, if all of the column names are the same or not.
+
+We can use these two functions to run a check before combining data from multiple files.
 
 ```{r}
-check_column_names <-function(folder_path, vector_of_file_names){
-  Folder <- folder_path
-  Files <- vector_of_file_names
-#create list to store results
-  myList <-  vector(mode='list', length=length(Files))
-  for (i in 1: length(Files)){
-    tempFile <- read.csv(here(paste0(Folder, "/",Files[i])), header = F, nrows = 1)
-    myList[[i]] <- as.character(tempFile[1,])
-    
+myList <- col_names_to_List(folder_path, myFiles)
+fileComparison <- compare_column_names(myList, myFiles)
+View(fileComparison)
+```
+
+Ok. In this case, all of the column names are the same. Next I would like to iterate through opening each file, adding a column name for workflow_version_number and filename and then combining the rows from each file all into one large data frame.
+
+Let's give it a whirl.
+
+Step one. Open first file
+
+```{r}
+df <- read.csv(paste0(folder_path,"/", myFiles[1]), stringsAsFactors = T)
+df$wfv_wfn <- basename(folder_path)
+df$filename <- myFiles[1]
+```
+
+Make it a loop
+
+```{r}
+for(i in 1:length(myFiles)){
+  tempDF <- read.csv(paste0(folder_path,"/", myFiles[i]), stringsAsFactors = T)
+tempDF$wfv_wfn <- basename(folder_path)
+tempDF$filename <- myFiles[i]
+  if(i == 1){
+    output_df <- tempDF
+  } else{
+    output_df <- rbind(output_df, tempDF)
   }
 }
+```
+
+Now save the output dataframe
+
+```{r}
+output_location <- here("Output/PostZooniverse/Consensus/By workflow")
+
+myfile <- paste0(
+  output_location, "/", basename(folder_path), "-combined.csv")
+
+write.csv(output_df, myfile, row.names = FALSE)
 ```
