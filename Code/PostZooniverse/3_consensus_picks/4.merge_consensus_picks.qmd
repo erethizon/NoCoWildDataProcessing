@@ -6,6 +6,8 @@ editor: visual
 
 ## Merge Consensus Picks
 
+I have combined all of the files for each classification and workflow in the folder `Output/PostZooniverse/Consensus/By workflow/` that now contains all of the files for each workflow number & workflow version combination. The files originate from the following locations:
+
 During the process to determine consensus picks from zooniverse-identified camera events, I produce the following files in the `3.determine_consensus_picks.Rmd` code:
 
 -   A file in `Output/PostZooniverse/Consensus/Correct` - this should include the correct classifications that had 100% consensus in the Zooniverse ID process
@@ -21,8 +23,6 @@ During the process to determine consensus picks from zooniverse-identified camer
 -   For some reason, there are subject IDs from the cleaned classification file that are not accounted for in the Assigned and Needs check categories. They will still need to have final species assignments made. The files with these subjects and image IDs are saved in `Outputs/PostZooniverse/Consensus/Needs check/Last Ones`.These files have many more columns than the others.
 
 There should be one of these files for each of the different Zooniverse workflows. The format for each of these files is a data frame with a column containing the subject ID, some number of columns with image ids for the event, a column for the number of classifications, a column indicating the number of different species that were identified, and, in some cases, a column for the final choice of species.
-
-I have combined all of the files for each classification and workflow in the folder `Output/PostZooniverse/Consensus/By workflow/` that now contains all of the files for each workflow number & workflow version combination.
 
 ### Combine files per workflow
 
@@ -58,4 +58,22 @@ Now get a list of the files in that folder
 
 ```{r}
 myFiles <- list.files(path = folder_path, pattern = ".csv")
+```
+
+Read the column names and see that they are the same between files
+
+Let's write a function that loops through all the files, saves the first row of each as a vector, and then compares to see if they are all the same.
+
+```{r}
+check_column_names <-function(folder_path, vector_of_file_names){
+  Folder <- folder_path
+  Files <- vector_of_file_names
+#create list to store results
+  myList <-  vector(mode='list', length=length(Files))
+  for (i in 1: length(Files)){
+    tempFile <- read.csv(here(paste0(Folder, "/",Files[i])), header = F, nrows = 1)
+    myList[[i]] <- as.character(tempFile[1,])
+    
+  }
+}
 ```
