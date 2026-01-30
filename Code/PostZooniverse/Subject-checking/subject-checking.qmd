@@ -1,0 +1,70 @@
+---
+title: "check-z-subject-sets"
+format: html
+editor: visual
+---
+
+## Check zooniverse subject set progress
+
+You may encounter a situation in which you need to prepare a subject set or subject sets to upload to the Zooniverse, but you are curious about the status of existing subject sets (have they been fully classified?).
+
+To check, go to the "behind the scenes" region of our zooniverse project by logging in and then choosing the "Build a project" menu.
+
+Go to Data Exports on the left-hand side and request a new subject export.
+
+Once you have the subject export, rename the downloaded file with the date you exported the subjects, e.g. 2025-12-16-subjects.csv.
+
+Place the file in Data –\> Post Zooniverse –\> Subjects.
+
+You can then use the following code to evaluate the subject set.
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(here)
+library(rstudioapi)
+```
+
+Now navigate to the file you want to consider
+
+```{r}
+path <- rstudioapi::selectFile(
+  caption = "Select subjects file", 
+  filter = "CSV Files (.csv)")
+subjects <-read_csv(path)
+```
+
+Now get names of zooniverse subject sets to join
+
+```{r}
+set_names <- read_csv(here("Data/PostZooniverse/Subjects/zooniverse_subject_set_ids.csv"))
+```
+
+Now get some summary information
+
+```{r}
+subject_summary <- subjects |> group_by(subject_set_id, workflow_id) |>
+  summarise(
+    num_subjects = length(unique(subject_id)),
+    #returns correct number of images in subject set
+    num_retired = sum(!is.na(retired_at))
+  ) 
+View(subject_summary)
+```
+
+Now join
+
+```{r}
+subject_summary_join <- 
+  left_join(
+    subject_summary, 
+    set_names |> select(subject_set_id, original_zooniverse_name),     
+    by = "subject_set_id")|>
+  relocate(original_zooniverse_name, .after = subject_set_id)
+```
+
+Then save this file
+```{r}
+write.csv(subject_summary_join, here(paste0("Output/subject-set-reports/",Sys.Date(),"-subject-set-report.csv")), row.names = F)
+```
+

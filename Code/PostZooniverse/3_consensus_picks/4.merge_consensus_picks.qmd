@@ -1,5 +1,4 @@
 ---
-many---
 title: "Merge consensus picks"
 format: html
 editor: visual
@@ -121,9 +120,6 @@ myList <- col_names_to_List_many_directories(myFilePaths)
 fileComparison <- compare_column_names(myList, myFiles)
 View(fileComparison)
 ```
-
-
-
 
 Let's give it a whirl. Open files
 

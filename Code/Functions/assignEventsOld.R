@@ -2,37 +2,10 @@
 
 #The function takes as arguments 1) a data frame with the exif data for a set of camera trap images that includes a column named DateTimeOriginal and 2) a number indicating the threshold number of seconds that differentiates between events. The default threshold is 60 seconds. To work correctly, the DF should be ordered by DateTimeOriginal.The possibility exists that two separate cameras
 #recorded a picture at the same time, which means that the images should be ordered by camera and then by data-time-original.So we need to extract
-#camera and SD card number to make it do that. This version of the function deals with error message
-#Error in if(!cond[i]) ev <- ev else ev <- ev+1:missing value where TRUE/FALSE needed
+#camera and SD card number to make it do that.
 
-assignEvents2 <- function(DF, threshold = 60) {
+assignEvents <- function(DF, threshold = 60) {
   DF$DateTimeOriginal<-ymd_hms(DF$DateTimeOriginal) #make DTO into a date class
-
-  #now create if..then such that if there are any files for which DateTimeOriginal is NA, quit function with error message
-  #otherwise, go through rest of function
-
-  #check NA here
-  check_for_NA <- sum(is.na(DF$DateTimeOriginal))
-
-
-  #extract files that are NA
-  if(check_for_NA > 0){
-    NA_files <- which(is.na(DF$DateTimeOriginal))
-
-    message("Returned dataframe is unchanged from original.\nSome of your images are NA for DateTimeOriginal.
-    \nReturning row numbers of just those images:")
-
-    for(i in length(check_for_NA)){
-      print(
-        (paste0("Images to check = row:  ", NA_files))
-         ) }
-
-
-    return(DF)
-  }  else {
-
-  #rest of function here
-
   DF$CamSD<-str_sub(DF$FileName, end = 10) #extracts the first 10 values of FileName into a new column
   DF<-DF %>% arrange(CamSD, DateTimeOriginal)#orders by camera and then date time original
 
@@ -49,8 +22,6 @@ assignEvents2 <- function(DF, threshold = 60) {
   ReportInterval<-c(1,interval)
   cond <- interval > thresh #sets condition for assigning an image to a new event or keeping it with existing event.
 
-  #now create if..then such that if there are any files for which DateTimeOriginal is NA, quit function with error message
-  #otherwise, go through rest of function
   #now loop through file and assign events
   for(i in 1:(L-1)){
     if(!cond[i]) ev<-ev else ev<-ev+1
@@ -61,10 +32,8 @@ assignEvents2 <- function(DF, threshold = 60) {
   DF$Interval<-ReportInterval
   DF$Event<-Event
 
-  return(DF)
-  #close if...else
-}
+
   #now return the dataframe
 
-
+  return(DF)
 }

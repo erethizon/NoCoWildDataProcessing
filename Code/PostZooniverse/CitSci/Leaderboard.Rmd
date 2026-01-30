@@ -6,6 +6,7 @@ output: html_notebook
 We need a set of scripts that we can use to look at a zooniverse classification file and determine who has made the most classifications in a particular time span. This code will do jus that.
 
 Set things up
+
 ```{r}
 rm(list = ls())
 library(tidyverse)
@@ -18,31 +19,36 @@ myFunctions<-list.files(here("Code", "Functions"), pattern = "R")
 
 sapply(here("Code", "Functions", myFunctions), source) #sources all of the functions in the Functions folder.
 ```
+
 ### Step 1. Choose the classification files to work with.
+
 We have multiple classification files. The `choose_my_classification_file` function asks the user for input so that they can select the classification file to work with. The classification file should be on the t://drive in Bart_s04/Research_group/NoCoWild/Data/classification_files.
-
-
 
 ```{r}
 animals<-choose_file_isolate_workflow()
 species<-choose_file_isolate_workflow()
 ```
+
 Now isolate each file to the date ranges of interest using `narrow_to_date.R`
 
 ```{r}
 animals<-narrow_to_date(animals[[1]])
 species<-narrow_to_date(species[[1]])
 ```
+
 ### Step 2. Now, for each data frame, identify users and then quantify classifications per user per time.
 
 #### Start with Is there an animal workflow ("animals"):
+
 Identify users
 
 How many are there?
+
 ```{r}
 unique(animals$user_name)
 length(unique(animals$user_name))
 ```
+
 Now combine all the not-logged-in users to a single username.
 
 ```{r}
@@ -56,6 +62,7 @@ animals$user_name[replacement]<- "Not logged in"
 
 unique(animals$user_name)
 ```
+
 Now assign each day to a week of the year
 
 ```{r}
@@ -63,7 +70,9 @@ animals<-animals %>% mutate(
   week=isoweek(created_at)
 )
 ```
+
 Now summarize effort by user by week
+
 ```{r}
 a_Effort<-animals %>% group_by(cYear, week, user_name) %>% summarize(
   Num_Class = length(classification_id),
@@ -72,6 +81,7 @@ a_Effort<-animals %>% group_by(cYear, week, user_name) %>% summarize(
 
 a_Effort2022<-a_Effort %>% filter(cYear == 2022)
 ```
+
 Now filter to just observations between 23 April and 29 April 2022.
 
 ```{r}
@@ -86,10 +96,12 @@ focal<-animals %>% filter(created_at > "2022-04-22 23:59:59") %>% group_by(user_
 Continue with Species identification workflow ("species"):
 
 How many are there?
+
 ```{r}
 unique(species$user_name)
 length(unique(species$user_name))
 ```
+
 Now combine all the not-logged-in users to a single username.
 
 ```{r}
@@ -103,6 +115,7 @@ species$user_name[replacement]<- "Not logged in"
 
 unique(species$user_name)
 ```
+
 Now assign each day to a week of the year
 
 ```{r}
@@ -110,7 +123,9 @@ species<-species %>% mutate(
   week=isoweek(created_at)
 )
 ```
+
 Now summarize effort by user by week
+
 ```{r}
 s_Effort<-species %>% group_by(cYear, week, user_name) %>% summarize(
   Num_Class = length(classification_id),
@@ -119,6 +134,7 @@ s_Effort<-species %>% group_by(cYear, week, user_name) %>% summarize(
 
 s_Effort2022<-s_Effort %>% filter(cYear == 2022)
 ```
+
 Now filter to just observations between 23 April and 29 April 2022.
 
 ```{r}
@@ -129,10 +145,10 @@ focal_s<-species %>% filter(created_at > "2022-04-22 23:59:59") %>% group_by(use
 ```
 
 Now join both by user_name to get total ranking
+
 ```{r}
 final<-full_join(focal, focal_s, by = "user_name")
 final<-final %>% mutate(
   total = Num_Class.x +Num_Class.y
 )
 ```
-

@@ -84,10 +84,10 @@ Exif <- read.csv(exif_file_path) #obviously, put correct file name here
 ## Create a test data set of images from the first 3 cameras in Exif
 
 ```{r}
-# Exif$CamSD<-str_sub(Exif$FileName, end=10) 
-# cams<-unique(Exif$CamSD)
-# mycams<-cams[1:3]
-# testDF<-Exif %>% filter(CamSD %in% mycams)
+Exif$CamSD<-str_sub(Exif$FileName, end=10)
+cams<-unique(Exif$CamSD)
+mycams<-cams[1:3]
+testDF<-Exif %>% filter(CamSD %in% mycams)
 ```
 
 ## Step 1 - Assign images to events

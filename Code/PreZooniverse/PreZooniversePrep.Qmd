@@ -33,7 +33,10 @@ In order to run this code, you will need to have the following in place:
 
 ## Set up the workspace for running the project.
 
-```{r, results='hide', echo = F, warning=FALSE}
+```{r}
+#| echo: FALSE
+#| output: FALSE
+
 rm(list = ls())
 library(tidyverse)
 library(here) #helps keep directory structure clean when using .Rmd files
@@ -42,6 +45,7 @@ myFunctionPath<-here("Code", "Functions") #shortens path for clearer code
 myFunctions<-list.files(myFunctionPath, pattern = "\\.R") #points to files that need to be sourced
 
 sapply(here("Code", "Functions",myFunctions), source) #sources all of the functions in the Functions folder.
+
 
 ```
 Set up the path to the folder containing the images and the folder containing the metadata file.
@@ -99,8 +103,8 @@ check_filename_values(Exif$FileName)
 If you need to remove rows that begin with ._ you should use the function called `fix_filename_values()` in the next code block. If it all looks good, skip ahead to the code block that runs `assignEvents()`
 
 ```{r}
-Exif<-fix_filename_values(Exif)
-check_filename_values(Exif$FileName)
+# Exif<-fix_filename_values(Exif)
+# check_filename_values(Exif$FileName)
 ```
 
 
@@ -137,7 +141,7 @@ Manifest is our desired output, and it gets saved in Output -> PreZooniverse -> 
 ```{r}
 Man_file<-str_replace(FilePrefix, "exif_", "manifest_")
 Man_file<-paste0(Man_file, "_", Sys.Date(), ".csv")
-write.csv(Manifest, here("Output", "PreZooniverse", "Manifests", "Z-26-Jan-2026-2nd-upload-manifest.csv"), row.names = F)
+write.csv(Manifest, here("Output", "PreZooniverse", "Manifests", "Z-30-Jan-2026-manifest.csv"), row.names = F)
 ```
 
 ## You did it! Nice job!

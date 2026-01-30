@@ -4,7 +4,198 @@ format: html
 editor: visual
 ---
 
-## Introduction
+## Work notes
+
+### 30 Jan 2026
+
+Zooniverse volunteers are insane! They already classified all of the images through the "Is there an animal?" workflow so I need to put up more images!
+
+Worked on preparing more files for zooniverse upload. Batch to include the following folders from 2024 Game camera images:
+
+-   C052_SD113 - 645 images
+
+-   C061_SD107 - 366 images
+
+-   C068_SD101 - 1326 images
+
+-   C054_SD110 - 741 images
+
+-   C041_SD042 - 147 images
+
+-   C027_SD017 - 474 images
+
+-   C066_SD111 - 132 images
+
+-   C069_SD086 - 129 images
+
+-   C047_SD112 - 537 images
+
+-   C043_SD012 - 1341 items
+
+### 29 Jan 2026
+
+Worked on preparing more files for zooniverse upload. Batch to include the following folders from 2024 Game camera images:
+
+-   C059_SD060 - 89 images
+
+-   C056_SD087 - 207 images
+
+-   C054_SD075 - 198 images
+
+-   C065_SD091 - 222 images
+
+-   C087_SD102 - 153 images
+
+-   C064_SD041 - 252 images
+
+-   C028_SD014 - 104 images
+
+-   C084_SD019 - 354 images
+
+-   C063_SD026 - 150 images
+
+-   C036_SD040 - 242 images
+
+-   C021_SD084 - 495 images
+
+-   C062_SD025 - 159 images
+
+-   C051_SD108 - 1734 images
+
+These were uploaded to the zooniverse as batch named Z-29-Jan-2026-upload.
+
+### 28 Jan 2026
+
+My work on Monday resulted in a problem with my code when trying to prepare a 3rd batch of images for the zooniverse. Today I'm working on debugging that code so that we can continue the work.
+
+The code breaks when running the `assignEvents()` function that I wrote several years ago. I suspect the error has to do with generation of an NA in the Interval column of the data frame, so that when assigning events based on the time interval between images, the code doesn't know how to handle the NA and stops.
+
+The problem appears to be that for some reason, the Exif data reports NA for the DateTimeOriginal field for a few photos. I need to modify the `assignEvents()` function to handle those cases.
+
+In the case of this problem, it looks like when I generated the exif data using exiftool in the terminal, for some reason it skipped 2 files - they have incomplete exif data. So I'm going to start by running that tool again to see if I get the same problem.
+
+Same problem arose: for 2 files, exiftool did not generate DateTimeOriginal in exif data file. I looked up both files and got their exif data manually, and each file seems to be corrupted - cannot get exif data and cannot open images.
+
+So, removed 2 files from those to be uploaded to zoonverse:
+
+C082_SD036_20250930115204_IMG_0710.JPG
+
+C082_SD036_20250930150909_folder2_IMG_0050.JPG
+
+Also updated function `assignEvents`. Current version now gives error message if it finds and images lacking DateTimeOriginal and returns row numbers with issues as well as unchanged original DF.
+
+Function `assignEventsOld()` is the prior version of the function that did not address NA in DateTimeOriginal.
+
+Now that it is all working, pushed the next upload to zooniverse as Z-28-Jan-2026-upload using the exif file Z-28-Jan-2026-upload-exif to generate the manifest.
+
+### 26 Jan 2026
+
+#### Preparing files for upload to zooniverse.
+
+Batch to include the following folders from 2025 Game camera images:
+
+-   C048_SD034 - 993 images
+
+-   C048_SD115 - 114 images
+
+-   C049_SD017 - 60 images
+
+-   C050_SD064 - 607 images
+
+-   C050_SD109 - 205 images
+
+-   C052_SD077 -45 images
+
+-   C054_SD104 - 61 images
+
+-   C056_SD003 - 300 images
+
+-   C058_SD007 - 228 images
+
+-   C059_SD013 - 165 images
+
+-   C059_SD116 - 204 images
+
+I copied all of these images to a folder called "Z-26-Jan-2026-upload" and used that folder for generating an exif file. All of these were uploaded today.
+
+#### Preparing 2nd set to upload for today also.
+
+Added images from the following folders:
+
+-   C061_SD102 - 70 images
+
+-   C062_SD113 - 495 images
+
+-   C064_SD032 - 84 images
+
+-   C065_SD011 - 740 images
+
+-   C066_SD107 - 1761 images
+
+-   C067_SD013 - 87 images
+
+-   C067_SD083 - 534 images
+
+-   C068_SD091 - 378 images
+
+These were all loaded to zooniverse as 26-Jan-2026-2nd-upload
+
+#### Preparing 3rd upload
+
+I made another folder that I called "next-upload" and copied images from the following folders:
+
+-   C069_SD040 - 507 images
+
+-   C082_SD036 - 1725 images
+
+-   C083_SD012 - 522 images
+
+-   C083_SD102 - 84 images
+
+-   C085_SD074 - 204 images
+
+-   C086_SD065 - 1674 images
+
+-   C086_SD105 - 114 images
+
+-   C087_SD086 - 213 images
+
+-   C999_SD019 - 219 images
+
+I got all of these images moved to a folder called "next-upload" and then started running the code in `PreZooniversePrep.Rmd` but when I got to line 108 `Exif<-assignEvents(Exif) #no threshold passed, using default of 60 seconds` I received the following error message:\
+
+::: callout-note
+Error in if(!cond\[i\]) ev \<- ev else ev \<- ev+1:\
+missing value where TRUE/FALSE needed
+:::
+
+So I need to diagnose. Note that the exif file for these images in in the parent directory to the folder in a file called `Z-26-Jan-2026-upload-3-exif.csv` as I will need it to diagnose.
+
+Next time, break into the file and see if I can figure that out.
+
+### 22 Jan 2026
+
+Preparing files for upload to zooniverse.
+
+Batch to include the following folders from 2025 Game camera images:
+
+-   C035_SD062 - 1707 images
+
+-   C035_SD117 - 57 images
+
+-   C038_SD014 - 75 images
+
+-   C038_SD075 -98 images
+
+-   C043_SD025 - 69 images
+
+-   C043_SD033 - 1508 images
+
+-   C047_SD089 - 183 images
+
+I copied all of these images to a folder called "Z-22-Jan-2026-upload" and used that folder for generating an exif file.
+
+### Managing Zooniverse IDs
 
 Digging in again after quite a hiatus. The code starting with `Parse files` below is reproduced exactly from the April-2024.Rmd file.
 
@@ -42,15 +233,25 @@ Let's take stock of where where are in terms of getting images classified proper
 
 : Status of image classifications by workflow\
 
-## Status of image classifications by workflowAdd commentMore actions
+## Hard drive error
 
-### 5 June 2025 
+31 Dec 2025
+
+The external hard drive on which we keep all of the NoCo Wild images appears to be failing. Fortunately, I have a daily time machine backup on that drive. The last backup was on 26 Dec 2025. I am currently restoring all of the files from that backup to a new external hard drive, but am uncertain if any files were lost until the file transfer is complete. I will also need to re-tune time machine to back up the new external drive. Very frustrating, but thank goodness it looks like almost all of the data is backed up. Also appreciaton and thanks to Brett for working out a backup system on AWS. A good sabattical challenge is going to be to get all of the files correctly organized and onto s3.
+
+### Checking status of subject sets
+
+16 Dec 2025
+
+Worked on code to take the subjects download from a zooniverse project and get a summary of which subject sets have been completed so it is easy to tell what to do next.
+
+## Status of image classifications by workflow
+
+### 5 June 2025
 
 Continued working on `Code/PostZooniverse/3_Consensus_picks/4.merge_consensus_picks.qmd` to begin merging files.
 
 wrote two helper functions as described.
-
-
 
 ### 4 June 2025 afternoon
 
