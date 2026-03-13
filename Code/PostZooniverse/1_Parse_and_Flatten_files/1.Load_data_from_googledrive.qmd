@@ -1,0 +1,80 @@
+---
+title: "1.Load_data_from_googledrive"
+format: html
+editor: visual
+---
+
+## Overview
+
+Our classification files from the Zooniverse get larger and larger (currently \> 700 MB) which clogs both pushing to GitHub (due to large file size issue) and drive space.
+
+This code allows you to point to a classification .csv file on the Zooniverse, subset it to the desired workflows, and do additional filtering so that you can write a smaller .csv file to use for analysis (or to keep in memory while you use the project but not write).
+
+Using the scripts here requires the `googledrive` package.
+
+## Set things up
+
+```{r}
+#| output: false
+rm(list = ls())
+library(tidyverse)
+library(googledrive)
+library(here)
+```
+
+1. Provide url to file on google drive (you must have at least "viewer" permission to see the file).
+
+```{r}
+file_id <- "https://drive.google.com/file/d/1LRyTcWR1xTyPr6MkvG8crqNNgL68CeAj/view?usp=drive_link"
+#need to pass the shared url for the correct csv file here
+```
+
+2. Now get some info about the file. Requires `googledrive`
+
+```{r}
+my_file <- drive_get(file_id) #pulls info from google drive for the file
+my_file$name 
+#prints file name - check to make sure you have pulled correct file. But first will ask you to authenticate with google drive.
+```
+3. Now read the file
+```{r}
+df <-read_csv(drive_read_string(my_file))
+#may be very slow!
+```
+
+## Subset to correct workflow and version
+
+The Zooniverse uses different "workflows," each of which can have different versions (as they are tweaked), for classfying images. 
+
+We start by identifying the workflows present in our classification file
+
+```{r}
+unique(df$workflow_id)
+unique(df$workflow_name)
+```
+
+The workflow we need to use is called "Species identification"
+
+Let's filter just to that
+
+```{r}
+df <- df |> filter(workflow_name == "Species identification")
+```
+
+Now we need to see how many versions there are of that worflow
+
+```{r}
+unique(df$workflow_version)
+```
+
+Generally, we'll want ids from the most current workflow version, in this case 32.13 so we filter to that.
+
+```{r}
+df <- df |> filter(workflow_version == 32.13)
+```
+
+This reduces us to a much smaller subset of the data.
+
+Next, refer to the file called "3.Flatten_Species_IDs" to see how we get the classification data from the file.
+
+It assumes that you still have `df` in your workspace.

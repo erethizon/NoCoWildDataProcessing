@@ -22,6 +22,9 @@ There are two key steps in preparing the data for upload to the zooniverse:
   
   - take the output produced from our `assignEvents()` function and create a second data frame that assigns each image to the proper column of the proper event. This data frame can then be modified further in R or directly exported as a .csv to the Output -> PreZooniverse -> Manifests folder for further modification in Excel or direct upload to the Zooniverse.
   - We use our custom function `makeManifest()` to complete step 2.
+  
+## Camera C041_SD013
+This deployment, corresponding to deployment C0354, had images all with basically the same date time stamp, so they cannot be broken into "events". For that reason, I'm going to manually assign an event column and just assign 1 image to each event, in order of image name. I will then use that event column to make the manifest.
 
 ## Before you begin
 
@@ -107,9 +110,22 @@ If you need to remove rows that begin with ._ you should use the function called
 # check_filename_values(Exif$FileName)
 ```
 
-
+Forcing for C041_SD013
 ```{r}
-Exif<-assignEvents(Exif) #no threshold passed, using default of 60 seconds
+DF <- Exif
+
+#Put images in order by image name; first create column based on image number, then put in order by that column
+DF <- DF |>
+  mutate(
+    Image_number = str_sub(FileName, -12)
+  )
+DF <- DF |> arrange(Image_number)
+
+DF <- DF |> 
+  mutate(
+    Event = 1:162
+  )
+Exif <- DF
 ```
 
 #### Save the output of Step 1 in case you need it later for something.
@@ -141,7 +157,7 @@ Manifest is our desired output, and it gets saved in Output -> PreZooniverse -> 
 ```{r}
 Man_file<-str_replace(FilePrefix, "exif_", "manifest_")
 Man_file<-paste0(Man_file, "_", Sys.Date(), ".csv")
-write.csv(Manifest, here("Output", "PreZooniverse", "Manifests", "Z-15-Feb-2026-manifest.csv"), row.names = F)
+write.csv(Manifest, here("Output", "PreZooniverse", "Manifests", "Z-15-Feb-C041_SD013-upload-manifest.csv"), row.names = F)
 ```
 
 ## You did it! Nice job!

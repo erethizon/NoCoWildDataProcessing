@@ -41,7 +41,7 @@ library(rstudioapi) #adds functions for user-supplying file paths, etc.
 myFunctionPath<-here("Code", "Functions") #shortens path for clearer code
 myFunctions<-list.files(myFunctionPath, pattern = "\\.R") #points to files that need to be sourced
 
-sapply(here("Code", "Functions",myFunctions), source) #sources all of the functions in the Functions folder.
+invisible(sapply(here("Code", "Functions",myFunctions), source)) #sources all of the functions in the Functions folder. #invisible function sources the functions without printing value ? and visible FALSE in the console for each function that is sourced.
 
 ```
 Set up the path to the folder containing the images and the folder containing the metadata file.
@@ -137,7 +137,7 @@ Manifest is our desired output, and it gets saved in Output -> PreZooniverse -> 
 ```{r}
 Man_file<-str_replace(FilePrefix, "exif_", "manifest_")
 Man_file<-paste0(Man_file, "_", Sys.Date(), ".csv")
-write.csv(Manifest, here("Output", "PreZooniverse", "Manifests", "Z-26-Jan-2026-2nd-upload-manifest.csv"), row.names = F)
+write.csv(Manifest, here("Output", "PreZooniverse", "Manifests", "Z-summer-fall-2024-images-upload-manifest.csv"), row.names = F)
 ```
 
 ## You did it! Nice job!

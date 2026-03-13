@@ -6,6 +6,114 @@ editor: visual
 
 ## Work notes
 
+### 15 Feb 2026
+
+I have determined that two folders that were processed on 26 December 2026, the day the NoCo Wild hard drive failed, did not make it to upload on the Zooniverse. Those are:
+
+-   C089_SD035
+
+-   C091_SD005
+
+Both got uploaded to AWS when processed, but neither have Processed folders. Need to run the scripts to resize them and then get ready for zooniverse. I will prepare them for zooniverse upload right now.
+
+Got both folders added to Zooniverse. I also created a manifest for folder C041_SD013 (see 5 Feb 2026 below) and uploaded it, with each image as a separate event due to the timestamp problem, so now all images from summer and fall 2025 should be on the Zooniverse.
+
+I also uploaded the images remaining from 2024, but left them "turned off" on the Zooniverse so they will not be available to ID until the current (summer/fall 2025) images are all classified.
+
+### 5 Feb 2026
+
+I think we have just about got all of the images from summer and fall 2025 up onto the zooniverse for classification (esp with the batch I just uploaded now, see immediately below).
+
+I need to check to see that all of the AWS uploads are logged on the master spreadsheet. I also need to check master spreadsheet to make sure that all zooniverse uploads are logged there.
+
+Preparing another batch of images for upload to the zooniverse while I process more files from Summer 2025.
+
+Folders processed for upload today include:
+
+-   C051_SD161 - 46 images
+
+-   C061_SD007 - 29 images
+
+-   C066_SD035 - 806 images
+
+-   C067_SD038 - 237 images
+
+-   C068_SD003 - 66 images
+
+-   C069_SD064 - 147 images
+
+-   C082_SD089 - 60 images
+
+-   C082_SD105 - 75 images
+
+This leaves out folder C041_SD013. In that folder all images were assigned the same time stamp by the camera, so I'm going to have to create the manifest for those images by hand. It has 162 images. I may have to just feed 1 image per event so that we can at least get species diversity data from the files.
+
+### 4 Feb 2026
+
+Preparing another batch of images for upload to the zooniverse while I process more files from Summer 2025.
+
+Some folders are lower priority, since they are not from Aidan and Liz's work.
+
+These I put copies of in a folder called "Summer 2024" for a zooniverse upload that should be done in the next few days and turned off until summer/fall 2025 images are IDd.
+
+-   C036_SD018 - 2903 images; summer 2024
+
+-   C021_SD025 - 156 images; summer 2024
+
+-   C047_SD040 - 132 images; fall 2024
+
+-   C048_SD035 - 87 images; fall 2024
+
+-   C052_SD084 - 450 images; fall 2024
+
+-   C047_SD011 - 513 images; fall 2024
+
+-   C048_SD064 - 258 images; fall 2024
+
+-   C066_SD095 - 264 images; summer 2024
+
+-   C064_SD006 - 45 images; summer 2024
+
+Separately, working on a different zooniverse upload with summer/fall 2025 images. Next batch includes the following folders. I prepared this batch and began uploading them to the zooniverse today.
+
+-   C059_SD034 - 144 images;
+
+-   C059_SD104 - 153 images;
+
+-   C062_SD036 - 27 images;
+
+-   C063_SD077 - 3905 images;
+
+-   C064_SD162 - 45 images
+
+-   C065_SD090 - 271 images
+
+### 3 Feb 2026
+
+Continued prepping files that I started with yesterday for upload to the Zooniverse platform. All of the folders that I processed on 2 Feb were uploaded to the Zooniverse today.
+
+Next I'm working on data processing so that we can get more images up onto the zooniverse ASAP.
+
+### 2 Feb 2026
+
+Worked on preparing more files for zooniverse upload. Batch to include the following folders from 2024 Game camera images:
+
+-   C021_SD065 - 116 images
+
+-   C038_SD103 - 123 images
+
+-   C056_SD041 - 1854 images
+
+-   C066_SD019 - 1014 images
+
+-   C052_SD005 - 663 images
+
+-   C047_SD060 - 606 images
+
+-   C060_SD089 - 12 images; no images other than camera deployment (ELB) and appear to be from Fall 2024. Appears to be deployment C0340. Images are on Zooniverse, so will add to AWS as well. Needs to be done.
+
+Note that folder C051_SD162 was empty. There are images in the corresponding "Raw" folder with incorrect date/times that have not been properly renamed using our scripts.
+
 ### 30 Jan 2026
 
 Zooniverse volunteers are insane! They already classified all of the images through the "Is there an animal?" workflow so I need to put up more images!
@@ -31,6 +139,40 @@ Worked on preparing more files for zooniverse upload. Batch to include the follo
 -   C047_SD112 - 537 images
 
 -   C043_SD012 - 1341 items
+
+And since it is the weekend and we want to take advantage of lots of volunteers, I'm preparing a second set of images to upload, including the following:
+
+-   C058_SD009 - 1815 images
+
+-   C086_SD100 - 180 images
+
+-   C067_SD109 - 276 images
+
+-   C050_SD031 - 282 images
+
+-   C052_SD032 - 66 images
+
+-   C050_SD062 - 778 images
+
+-   C048_SD033 - 24 images
+
+-   C047_SD011_2 - 210 images
+
+-   C043_SD021 - 639 images
+
+-   C038_SD042 - 147 images
+
+-   C038_SD018 - 39 images
+
+-   C036_SD074 - 132 images
+
+-   C035_SD040 - 156 images
+
+-   C032_SD025 - 54 images
+
+-   C028_SD001 - 81 images
+
+-   C027_SD026 - 91 images
 
 ### 29 Jan 2026
 

@@ -25,27 +25,36 @@ Processing the data requires five steps:
 ### Turn on packages and bring in the data and r scripts
 We need to load desired packages and also source custom functions  so that they will run. The tidyjson package may have to be loaded from this [github](https://github.com/sailthru/tidyjson) site. Look [here](https://cran.r-project.org/web/packages/githubinstall/vignettes/githubinstall.html) for some hints as to how to do that.
 
-```{r, message=FALSE, echo=FALSE}
+
+If you are starting from scratch and want to clear R's environment:
+```{r, message = FALSE, echo = FALSE}
 rm(list = ls())
-library(here)
 library(tidyverse)
+library(here)
+```
+
+Otherwise, start here (e.g. if coming from `1.Load_data_from_googledrive`):
+
+```{r, message=FALSE, echo=FALSE}
 library(tidyjson)#may get error; if so, load from github
 library(jsonlite)
 library(magrittr) #allows piping beyond tidyverse
-library(dplyr)
 library(stringr)
 library(tidyr)
-library(lubridate)
 library(rstudioapi)
 
 
 myFunctions<-list.files(here("Code", "Functions"), pattern = "R") 
 #points to files that need to be sourced
 
-sapply(here("Code", "Functions", myFunctions), source) #sources all of the functions in the Functions folder.
+invisible(sapply(here("Code", "Functions",myFunctions), source)) #sources all of the functions in the Functions folder. 
+#invisible function sources the functions without printing value ? and visible FALSE in the console for each function that is sourced.
+
 ```
 
 ###Step 1. Choose the classification file to work with.
+**If you already reduced your data to a single classification and workflow, you can skip this step and move down to Step 2 below.**
+
 We have multiple classification files as a result of the `1.Parse_workflows.Rmd` file operation. 
 
 Here we point to the folder containing those files and obtain information about the file. 
@@ -57,6 +66,8 @@ filename<-DF[[2]]
 ```
 
 ### Step 2. Obtain metadata about the file
+
+#### Method A. Assumes you are running this script from the top and didn't already have a dataframe in memory.
 
 Let's gather some information about this data file and create a data frame in which to gather it.
 
@@ -72,33 +83,56 @@ File_metadata[5,] <-c("Num unflattened rows", length(data$classification_id))
 
 ```
 
+#### Method B. Assumes you have a single dataframe read in via e.g. the `googledrive` package.
+
+```{r}
+File_metadata <- data.frame(Parameter = character(),
+                            Value = character()) #intialize empty dataframe
+
+File_metadata[1,] <- c("File name", my_file$name)
+File_metadata[2,] <- c("Workflow ID", unique(df$workflow_id))
+File_metadata[3,] <-c("Workflow name", unique(df$workflow_name))
+File_metadata[4,] <-c("Workflow version", unique(df$workflow_version))
+File_metadata[5,] <-c("Num unflattened rows", length(df$classification_id))
+File_metadata[6,] <- c("Num unique classifications", length(unique(df$classification_id)))
+File_metadata[7,] <- c("Num unique subjects", length(unique(df$subject_ids)))
+```
 
 
 ### Step 3. Parse the annotations column
 We now flatten the Annotations column by calling the  `flatten_annotations` function. 
 
 ```{r}
-flat_file<-flatten_annotations(data) #this is slow; could we write faster code?  A problem for another day.
-
-File_metadata[6,] <- c("Num unique classifications", length(unique(data$classification_id)))
-File_metadata[7,] <- c("Num unique subjects", length(unique(data$subject_ids)))
+flat_file<-flatten_annotations(df) #this is slow; could we write faster code?  A problem for another day.
 ```
+Why does the flattened file have fewer rows than the initial dataframe?
+
+Let's see which `subject_ids` in the main data frame are missing from the flattened file:
+
+```{r}
+not_in_flat <- setdiff(df$classification_id, flat_file$classification_id)
+```
+You can see that the difference are rows of data for which a classification was not completed.
+
+So, flat_file has all of the data for which a classification was actually made.
 
 ### Step 4. Parse the subjects column
 
 Now we can parse the data.
 
-
+If you are working with a recent version of the species identification workflow, use the `flatten_subjects_wflow_32_13.R` function.
 ```{r}
-subjects<-flatten_subjects(data)
+subjects<-flatten_subjects_wflow_32_13(df)
 ```
+
+
+If you are using data from an older workflow, there may be some wonky issues when you flatten subjects -- use the basic `flatten_subjects` function if that is the case.
 
 I've updated flatten_subjects so that it reports a lot of columns, parsing all of the subject columns regardless of the format of the manifest that was uploaded to the zooniverse. So now we can sort by project and isolate data from different manifests that use the same workflow. 
 
-
 Notice that if flat_file may have fewer rows than subjects it is because for some subset of the data (equal in number to the difference in length b/w the subjects data and the flat_file data) no identification was made, so the annotations column has no information.
 
-###Step 4. Merge the annotations and subjects data
+###Step 5. Merge the annotations and subjects data
 Now that we have flattened both the annotations and subject_data columns, we would like to generate one large data frame with all of the data to export and analyze (using different R scripts!).  To do so, we need to join the two data frames.  Joining will **only work** if you have a column, named identically in both data frames, on which the join will work.
 
 The join itself is pretty easy:
@@ -108,9 +142,18 @@ Flattened<-left_join(flat_file, subjects, by='classification_id')
 # Now move subject_ids column to left most position
 
 Flattened<-Flattened %>% relocate(subject_ids)
+
+#and move the Camera_SD card combination toward the left as well.
+
+Flattened <- Flattened |>
+  relocate(CamSD, .after = classification_id)
 ```
 
+## Save the result
+
 Now Save our result! This will go in the flattened folder within the PostZooniverse outputs.
+
+### Method A. Assumes you are running this script from the top and didn't already have a dataframe in memory.
 ```{r}
 output<-here("Output", "PostZooniverse", "Flattened", "Species_ID")
 
@@ -123,5 +166,16 @@ write.csv(File_metadata, paste0(output,"/",myFile,"_fMeta_", Sys.Date(), ".csv")
 
 ```
 
+### Method B. Write the file locally and then push to a google drive.
 
+#### Step 1. Save the .csv file
+```{r}
+write_csv(Flattened, here("Output/PostZooniverse/Flattened/Species_ID/Flattened-wf16995_32_13-11-Mar-2026.csv"))
+```
+
+#### Step 2. Push to google drive
+Will write this code later
+
+#### Step 3. Remove file from local project if using github repo
+Because of the "large file size" issue with GitHub, if you have written the file (Step 1 above) to a folder within the repo, you may have problems pushing commits to GitHub if you make any project commits while the large file is part of the project. So you may wish to delete the local version of the file from the project.
 

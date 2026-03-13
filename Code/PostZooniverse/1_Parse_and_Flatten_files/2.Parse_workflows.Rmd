@@ -22,7 +22,9 @@ library(rstudioapi)
 myFunctions<-list.files(here("Code", "Functions"), pattern = "R") 
 #points to files that need to be sourced
 
-sapply(here("Code", "Functions", myFunctions), source) #sources all of the functions in the Functions folder.
+invisible(sapply(here("Code", "Functions",myFunctions), source)) #sources all of the functions in the Functions folder. 
+#invisible function sources the functions without printing value ? and visible FALSE in the console for each function that is sourced.
+
 ```
 
 
