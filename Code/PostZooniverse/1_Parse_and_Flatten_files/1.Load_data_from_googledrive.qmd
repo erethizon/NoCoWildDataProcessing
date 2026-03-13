@@ -22,21 +22,23 @@ library(googledrive)
 library(here)
 ```
 
-1. Provide url to file on google drive (you must have at least "viewer" permission to see the file).
+1.  Provide url to file on google drive (you must have at least "viewer" permission to see the file).
 
 ```{r}
 file_id <- "https://drive.google.com/file/d/1LRyTcWR1xTyPr6MkvG8crqNNgL68CeAj/view?usp=drive_link"
 #need to pass the shared url for the correct csv file here
 ```
 
-2. Now get some info about the file. Requires `googledrive`
+2.  Now get some info about the file. Requires `googledrive`
 
 ```{r}
 my_file <- drive_get(file_id) #pulls info from google drive for the file
 my_file$name 
 #prints file name - check to make sure you have pulled correct file. But first will ask you to authenticate with google drive.
 ```
-3. Now read the file
+
+3.  Now read the file
+
 ```{r}
 df <-read_csv(drive_read_string(my_file))
 #may be very slow!
@@ -44,7 +46,7 @@ df <-read_csv(drive_read_string(my_file))
 
 ## Subset to correct workflow and version
 
-The Zooniverse uses different "workflows," each of which can have different versions (as they are tweaked), for classfying images. 
+The Zooniverse uses different "workflows," each of which can have different versions (as they are tweaked), for classfying images.
 
 We start by identifying the workflows present in our classification file
 
