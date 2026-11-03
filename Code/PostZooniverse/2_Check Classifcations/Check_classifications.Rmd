@@ -36,16 +36,32 @@ Num_subjects<-length(unique(Classified$subject_ids))
 ```
 How many observations per subject_id?
 ```{r}
-PerSubID<-Classified %>% group_by(subject_ids) %>% summarise(
+Classified %>% 
+  group_by(subject_ids) %>% 
+  summarise(
   NumClassification = length(choice)
-)
+) |> arrange(desc(NumClassification)) |>
+  View()
 ```
 What is the range in number of classifications per subject id?
 ```{r}
-summary(PerSubID$NumClassification)
+
+Classified %>% 
+  group_by(subject_ids) %>% 
+  summarise(
+  NumClassification = length(choice)
+) |> summary(NumClassification) |>
+  View()
+
 ```
 Plot a histogram of number of classifications
 ```{r}
+PerSubID <- Classified %>% 
+  group_by(subject_ids) %>% 
+  summarise(
+  NumClassification = length(choice)
+) |> arrange(desc(NumClassification)) 
+
 ggplot(PerSubID, aes(NumClassification))+
   geom_histogram()
 ```

@@ -11,16 +11,16 @@ We need to know the following:
 
 1.  For how many subject ids were all of the choices the same (i.e. all classifiers identified the same species)?
 
--   What was the chosen species for each of these subject ids?
+- What was the chosen species for each of these subject ids?
 
 2.  For which subject_ids were there discrepancies in what the species_id was?
 
--   How many of these subject_ids were there?
+- How many of these subject_ids were there?
 
 3.  For which subject_ids were there more than one species present in the set of photos?
 
--   We'll see below that these are the cases in which num_votes \> num_class
--   Are there discrepancies in what species are indicated as present? How will we reconcile them?
+- We'll see below that these are the cases in which num_votes \> num_class
+- Are there discrepancies in what species are indicated as present? How will we reconcile them?
 
 ## Set up the workspace and read in the data
 

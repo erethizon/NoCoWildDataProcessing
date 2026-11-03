@@ -1,0 +1,359 @@
+---
+title: "Iterative consensus picks"
+format: html
+editor: visual
+---
+
+## Iterative consensus picks
+
+Our current method for determining the consensus picks among our zooniverse classfications applies code to the entire dataset, which can make error checking rather problematic.
+
+Here I am writing new code (April 2026) that will work through the data one deployment at a time to assign the consensus choice for each subject_id.
+
+This code assumes that you have a Flattened file in your environment. If not, use the code in `1_Parse_and_Flatten_files` and perhaps in `2_Check_classifications` before coming here.
+
+## Overview
+
+Once we have flattened all of our data, we need to examine it to determine the consensus species ID for each event.
+
+We need to know the following:
+
+For how many subject ids were all of the choices the same (i.e. all classifiers identified the same species)?
+
+What was the chosen species for each of these subject ids?
+
+For which subject_ids were there discrepancies in what the species_id was?
+
+How many of these subject_ids were there?
+
+For which subject_ids were there more than one species present in the set of photos?
+
+We'll see below that these are the cases in which num_votes \> num_class
+
+Are there discrepancies in what species are indicated as present? How will we reconcile them?
+
+Can we keep data on what percent of IDs were problematic?
+
+### Set up
+```{r}
+rm(list = ls()) #uncomment if starting fresh
+library(tidyverse)
+library(googledrive)
+library(pander)
+library(here)
+```
+
+### Read in flattened file
+If you are not continuing from an earlier script with data already in your environment, you will need to read in a `flattened` file:
+
+Step 1 - Set file path
+
+```{r}
+file_id <- "https://drive.google.com/file/d/1dOQZ40AfQXA-fEdEFFX5waiS7HWTRxVr/view?usp=drive_link"
+```
+
+Step 2 - get file info from googledrive
+
+```{r}
+flat_file <- drive_get(file_id) #pulls info from google drive for the file
+flat_file$name #prints file name - check to make sure you have pulled correct file
+```
+
+Step 2 - read file
+
+```{r}
+Flattened <- read_csv(drive_read_string(flat_file))
+```
+
+## Prep the file
+
+Check to see that there is a column called `newDTO_img1` in the file
+
+```{r}
+"newDTO_img1" %in% names(Flattened)
+```
+
+If there is not, use the code below to fix the dates. 
+
+### Fix Dates 
+One thing we should do for determining consensus picks is to correct the dates associated with the date-time of the first image in each subject set.
+
+```{r}
+Flattened <- Flattened |>
+  mutate(
+    newDTO_img1 = parse_date_time(DTO_Img1, c("mdy_HM", "ymd_HMS", "ymd")))
+    
+Flattened <- Flattened |>
+  relocate(newDTO_img1, .after = DTO_Img1)
+```
+
+### Delete empty columns
+
+Next, check to see if there area any empty columns in dataset and delete if there are. You don't need to do this if you are coming directly from `3.Flatten_Species_IDs.Rmd`
+
+But if you have some, get rid of any empty columns in the dataset:
+
+```{r}
+empty_cols <- sapply(Flattened, function(x)all(is.na(x))) #identify the columns that only contain NA
+dump <- which(empty_cols == TRUE)
+
+Flattened <- Flattened |>
+  select(!(all_of(dump)))
+```
+
+### Get rid of answers to questions
+
+Now let's get rid of the columns that begin with `answers.` to clean up the data a bit. We may want these at some point if we try to look at behavior.
+
+```{r}
+Flattened <- Flattened |>
+  select(!starts_with("answers"))
+```
+
+### Combine cottontail and snowshoe hare
+
+```{r}
+Flattened <- Flattened |>
+  mutate(choice1 = choice) |>
+  relocate(choice1, .after = choice)
+
+Flattened <- Flattened |>
+  mutate(
+    choice1 = replace_when(choice1, choice == "COTTONTAILRABBIT" | choice == "SNOWSHOEHARE" ~ "RABBIT OR HARE")
+  )
+```
+
+## Join to deployment data
+
+Now read in the deployment data from google drive and join it to the classification data Step 1. Set file path
+
+```{r}
+deployment_file <- "https://drive.google.com/file/d/1vEAI-vi17AIOZqU8OGmMTQF4cLSla42q/view?usp=sharing"
+
+```
+
+Step 2. Get file info from google drive
+
+```{r}
+deploy_file <- drive_get(deployment_file) #pulls info from google drive for the file
+deploy_file$name
+```
+
+Step 3. Read file.
+
+```{r}
+deployments <- read_csv(drive_read_string(deploy_file))
+```
+
+### Assign date fields
+
+```{r}
+deployments <- deployments |>
+  mutate(
+    deployment_data_standardized = dmy(deployment_data_standardized),
+    collection_date_standardized = dmy(collection_date_standardized)
+  )
+```
+
+There are some deployments for which no one recorded the collection date, so we don't have it.
+
+### Compare columns between Flattened and deployments
+
+### Check the primary keys
+
+We should verify that the primary keys in each table (CamSD in Flattened and Cam_SD in deployments) uniquely identify each observation. We can use `count()` and look for entries where `n > 1`
+
+```{r}
+Flattened |>
+  count(CamSD) |>
+  filter(n >1) |>
+  pander()
+```
+
+In `Flattened`, there are 128 rows in which CamSD repeats, which makes sense, because we have multiple `subject_ids` from each deployment.
+
+```{r}
+deployments |>
+  count(Cam_SD) |>
+  filter(n > 1) |>
+  pander()
+```
+
+There are 19 rows in which Cam_SD is repeated. This is a problem, because we reused Cam_SD card combinations. So we don't know which Cam_SD of those 19 rows is the proper match in `Flattened`. Let's take a look at those
+
+```{r}
+check <- deployments |>
+  count(Cam_SD) |>
+  filter(n > 1) 
+```
+
+Now filter just those deployments
+
+```{r}
+deployments |> 
+  filter(Cam_SD %in% check$Cam_SD) |>
+  arrange(Cam_SD, deployment_data_standardized) |>
+  View()
+```
+
+We could perhaps have a `surrogate` primary key that combines Cam_SD with deployment_data_standardized.
+
+```{r}
+deployments |>
+  count(Cam_SD, deployment_data_standardized) |>
+  filter(n > 1) |>
+  pander()
+```
+
+There are no cases with repeats, so that combination gives a unique id.
+
+### Check for many-to-many relationships
+
+To do a join, we'd like to know what camera_sd combinations are common between the 2 datasets
+
+```{r}
+common_cams <- intersect(Flattened$CamSD, deployments$Cam_SD)
+```
+
+Now look to see if there are camera_sd combinations that are not shared between the 2 datasets
+
+```{r}
+Flat_v_deploy <- setdiff(Flattened$CamSD, deployments$Cam_SD)
+```
+
+There are no cameras in Flattened that are not in deployments. Are there camerqs in deployments that are not in Flattened?
+
+```{r}
+deploy_v_Flat <- setdiff(deployments$Cam_SD, Flattened$CamSD)
+```
+
+There are 308 cameras in deployments that do not occur in Flattened. Let's remove them.
+
+```{r}
+#create function to negate %in%
+`%nin%` <- Negate(`%in%`) #that's the function
+deployments_small <- deployments |>
+  filter(Cam_SD %nin% deploy_v_Flat)
+```
+
+Reduced deployments to 140. Now see if Cam_SD is unique
+
+```{r}
+deployments_small |>
+  count(Cam_SD) |>
+  filter(n > 1) |>
+  pander()
+```
+
+Now there are 11 Cam_SD combinations in deployments_small that are repeated.
+
+Let's look at them:
+
+```{r}
+deployments_small |>
+  count(Cam_SD, deployment_data_standardized) |>
+  filter(n > 1) |>
+  pander()
+```
+
+Isolate them
+
+```{r}
+check1 <- deployments_small |>
+  count(Cam_SD) |>
+  filter(n > 1) 
+```
+
+Now view just those deployments that repeat
+
+```{r}
+deployments_small |> 
+  filter(Cam_SD %in% check1$Cam_SD) |>
+  arrange(Cam_SD, deployment_data_standardized) |>
+  View()
+```
+
+And now let's look at the Flattened data for those cams
+
+```{r}
+Flattened |>
+  filter(CamSD %in% check1$Cam_SD) |>
+  arrange(CamSD, newDTO_img1) |>
+  View()
+```
+
+### Join the datasets
+
+It looks like we have an unfortunate case in which the Cam_SD field has repeated instances representing DIFFERENT deployments.So I think I need to do a fancy join in which I check that the newDTOimage1 in Flattened falls within the deployment date and collection date in deployments.
+
+First, let's make sure that for any given Cam_SD in deployments, there is no overlap in deployment dates (which should be impossible):
+
+```{r}
+deployments_small |> 
+  arrange(Cam_SD, deployment_data_standardized) |>
+  group_by(Cam_SD) |>
+  mutate(
+    overlap = deployment_data_standardized <=lag(collection_date_standardized) 
+  ) |>
+  filter(overlap)
+```
+
+There are zero rows, so it seems no overlap.
+
+Next, we'll try a fancy join, something like:
+
+result \<- left_join( Flattened, deployments_small, join_by( CamSD == Cam_SD, newDTO_img1 \>= deployment_data_standardized, newDTO_img1 \<= collection_date_standardized ) )
+
+Let's try it!
+
+```{r}
+test_join <- left_join(
+  Flattened, 
+  deployments_small,
+  join_by(
+    CamSD == Cam_SD,
+    newDTO_img1 >= deployment_data_standardized,
+    newDTO_img1 <= collection_date_standardized
+    )
+)
+```
+Are there any subject_ids in test_join for which deployment_id is na?
+
+```{r}
+  length(which(is.na(test_join$deployment_number)))
+```
+Ok - there are 1650 rows for which the join didn't work. Let's take a look at them
+
+```{r}
+test_join |>
+  filter(is.na(deployment_number)) |>
+  View()
+```
+now figure out what cameras they are from
+
+```{r}
+join_prob <- test_join |>
+  filter(is.na(deployment_number))
+
+prob_cams <- unique(join_prob$CamSD)
+prob_cams
+```
+Now look at those cams in deployments
+```{r}
+deployments_small|>
+  filter(Cam_SD %in% prob_cams) |>
+  View()
+```
+
+
+
+
+I think it worked! Now get rid of all empty columns!
+
+```{r}
+empty_cols <- sapply(test_join, function(x)all(is.na(x))) #identify the columns that only contain NA
+dump <- which(empty_cols == TRUE)
+
+test_join <- test_join |>
+  select(!dump)
+```
