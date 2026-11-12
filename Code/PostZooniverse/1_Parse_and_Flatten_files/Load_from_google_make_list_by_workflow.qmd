@@ -1,0 +1,129 @@
+---
+title: "1.Load_data_from_googledrive"
+format: html
+editor: visual
+---
+
+## Overview
+
+Our classification files from the Zooniverse get larger and larger (currently > 900 MB) which clogs both pushing to GitHub (due to large file size issue) and drive space.
+
+Our current workflow involves parsing the JSON data in the zooniverse output in two steps: first, parse the `subject_data` column for the entire zooniverse file, and then subset the result by workflow to the iteratively parse the annotations data.
+
+This code allows you to point to a file stored on google drive (either one that we downloaded directly from Zooniverse or another), subset it to the desired workflows, and do additional filtering so that you can write a smaller .csv file to use for analysis (or to keep in memory while you use the project but not write).
+
+Using the scripts here requires the `googledrive` package.
+
+## Set things up
+
+```{r}
+#| output: false
+rm(list = ls())
+library(tidyverse)
+library(googledrive)
+library(here)
+```
+
+## Get data from google drive
+1.  Provide url to file on google drive (you must have at least "viewer" permission to see the file).
+
+```{r}
+file_id <- "https://drive.google.com/file/d/1QHKup4T7a9gZ0gCD8lK5Tx1xhkCMocYg/view?usp=sharing" #pulls zoo_subjects_through_Aug_2026.csv file
+
+#need to pass the shared url for the correct csv file here
+```
+
+2.  Now get some info about the file. Requires `googledrive`
+
+```{r}
+my_file <- drive_get(file_id) #pulls info from google drive for the file
+my_file$name 
+#prints file name - check to make sure you have pulled correct file. But first will ask you to authenticate with google drive.
+```
+
+3.  Now read the file
+
+```{r}
+df <-read_csv(I(drive_read_string(my_file)))
+#may be very slow!
+```
+
+## Subset to correct workflow and version
+
+The Zooniverse uses different "workflows," each of which can have different versions (as they are tweaked), for classfying images.
+
+We start by identifying the workflows present in our classification file
+
+```{r}
+unique(df$workflow_id)
+unique(df$workflow_name)
+```
+
+The workflow we need to use is called "Species identification"
+
+Let's filter just to that
+
+```{r}
+df <- df |> filter(workflow_name == "Species identification")
+```
+
+Now we need to see how many versions there are of that workflow
+
+```{r}
+unique(df$workflow_version)
+```
+
+Because the dataset has data from many different versions of this workflow, let's create a list that subsets the dataset by workflow version with each subset as a different element of the list.
+
+```{r}
+df_list <- list() #creates empty list}
+df_list <- split(df, df$workflow_version) #creates list with each element a dataframe for a particular workflow version
+```
+
+Now if we look at that list of 15 different workflow versions, we can see that only 4 had significant amounts of data.
+
+| Workflow version | Num rows |
+|------------------|----------|
+| 11.8             | 13033    |
+| 29.1             | 73243    |
+| 32.13            | 100516   |
+| 34.14            | 37377    |
+
+: Number of rows in specific workflows
+
+All of the other versions of this main workflow have fewer than 20 rows.
+
+Let's extract just these workflow versions.
+
+```{r}
+wf_versions <- c('11.8', '29.1','32.13', '34.14') #most recent workflows
+```
+
+Now subset the data to just those workflow versions:
+
+```{r}
+#now extract just the two workflow versions I need 
+select_list <- df_list[wf_versions]
+
+#if you want to just extract data directly into df and not list 
+#df <- df |\> filter(workflow_version == 32.13 | workflow_version == 34.14) 
+```
+
+Now if you'd like to remove the larger datasets from the environment, run this code:
+
+```{r}
+rm(df)
+rm(df_list)
+```
+
+This reduces us to a much smaller subset of the data in our environment.
+
+Now write your list as an R data object so it can be imported into other code. Put it in `Data/PostZooniverse/Unflattened`
+
+```{r}
+write_rds(select_list, here("Data/PostZooniverse/Unflattened/Zoo_through_Aug_26_main_workflows.rds"))
+```
+
+Next, refer to the file called `2.Flatten_annotations_by_workflow` to see how we get the classification data from the file.
+
+It assumes that you still have `df_list` and/or `select_list` in your workspace.If not, you can read in the list you just wrote.

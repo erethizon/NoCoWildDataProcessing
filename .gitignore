@@ -11,3 +11,5 @@
 *.xlsx
 .DS_Store
 .positai
+.rds
+

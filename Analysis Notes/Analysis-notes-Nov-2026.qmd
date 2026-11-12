@@ -1,0 +1,37 @@
+---
+title: "Analysis notes Nov 2026"
+format: html
+editor: visual
+---
+
+## Goals
+
+In winter 2025, I ran all of the images our project had loaded on the zooniverse that had not been run through our most current classification workflow through that workflow so that all images since 2019 when we started could be evaluated together.
+
+Thus, the file `north-country-wild-classifications.csv` that is stored on google drive with a september, 2026 date ([this file](https://drive.google.com/file/d/1ibs59JwqP9I0CuETUmU5_Ulcn-2EqZqf/view?usp=drive_link)) should contain all images posted to zooniverse to date.
+
+My goals are to:
+
+- flatten that file;
+
+- determine classification IDs for as many events as possible (1 event = up to 3 images taken by a camera in the same 60 second window);
+
+- identify a subset of events (? 100) for which classification IDs have been made to evaluate and see if the IDs are correct (determine effectiveness of Zooniverse team)
+
+- identify a list of events for which I need to go back and provide a final classification manually
+
+- Go through all the human image file classifications (on zooniverse and then in classification file) and get a count for each camera of how many people show up.
+
+- Flatten and go through subset of "is there an animal" workflow to determine quality control
+
+## Steps
+
+1.  Subset data to workflow name "Species identification" and workflow versions 32.13 and 34.14 into two separate files, df32_13 and df34_14.
+2.  Ran code in `3.Flatten_Species_IDs.Rmd` to flatten JSON data into columns.
+    - Exported 2 data files to `Output/PostZooniverse/Flattened/Species_ID`:
+
+      - noco_wild_to_aug_20_2026_fMeta_2026-11-05...csv has the metadata for the 2 workflow versions in the dataset
+
+      - to_aug_2026_combined_workflow_versions_flat.csv has the data from workflow vers 32.13 and 34.12.
+
+        - Start next steps with this file.

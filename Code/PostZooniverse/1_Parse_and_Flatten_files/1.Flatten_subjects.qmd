@@ -1,0 +1,144 @@
+---
+title: "dealing_with_JSON"
+format: html
+editor: visual
+---
+
+THIS FILE IS FOR ADDRESSING ISSUES WITH THE JSON DATA FROM THE "SPECIES IDENTIFICATION" WORKFLOWS.
+
+The JSON data is not structured the same way for each set of zooniverse output, so we need a way to map all of the possibilities and handle the data effectively.
+
+## Overview
+
+Output from classifications on the [Zooniverse](https://zooniverse.com) come encoded in *JSON format*. While most of the columns are straightforward to interpret, two critical columns are not. The first is the **annotation column**. Within it are the species identification and the answers to all of the questions for each event. Likewise, the **subject_data** column contains all of the information from the manifest, such as the forest type, photo batch, camera number, and forest name. It would be good to be able to pull all of this information. We especially need it if we plan to remove e.g. images taken on malfunctioning cameras or otherwise suspect images. It looks like we can parse the subject data across all of the workflows and workflow versions, but cannot parse the annotations column across all workflows and workflow versions.
+
+Assuming you are working with the complicated zooniverse data (through August 2026), you will need the following steps:
+
+1.  Parse the `subject_data` column from the entire zooniverse dataset. To do so you will use the new (Nov 2026) `flatten_subjects_across_wkflows` function.
+
+2.  Subset the data by workflow and workflow version. Those files are obtained from the `1.Parse_workflows.Rmd` file in the previous step.
+
+3.  Parse the annotations column for each workflow. The annotations column is the column in the zooniverse classification file that includes all of the answers to the questions in the zooniverse workflow, including what the species is and what the animals are doing.
+
+4.  
+
+5.  Join the annotation & subject_data together into a data frame for further data analysis.
+
+6.  Write the output to a folder called "Flattened" in the PostZooniverse Output folder.
+
+While this is all well and good, the code below also has some data checking built in, for work being done in November, 2026 working with 4 versions of the workflow Zooniverse 16695, Species identification.
+
+### Turn on packages and bring in the data and r scripts
+
+We need to load desired packages and also source custom functions so that they will run. The tidyjson package may have to be loaded from this [github](https://github.com/sailthru/tidyjson) site. Look [here](https://cran.r-project.org/web/packages/githubinstall/vignettes/githubinstall.html) for some hints as to how to do that.
+
+If you are starting from scratch and want to clear R's environment:
+
+```{r, message = FALSE, echo = FALSE}
+
+rm(list = ls())
+library(tidyverse)
+library(here)
+
+```
+
+Otherwise, start here (e.g. if coming from `1.Load_data_from_googledrive`):
+
+```{r, message=FALSE, echo=FALSE}
+library(tidyverse)
+library(here)
+library(tidyjson)#may get error; if so, load from github
+library(jsonlite)
+library(magrittr)#allows piping beyond tidyverse
+library(googledrive)
+library(stringr)
+library(tidyr)
+
+myFunctions <-list.files(here("Code", "Functions"), pattern = "R")
+
+#points to files that need to be sourced
+
+invisible(sapply(here("Code", "Functions", myFunctions), source)) #sources all of the functions in the Functions folder.
+
+#invisible function sources the functions without printing value ? and visible FALSE in the console for each function that is sourced.
+
+```
+
+### Step 1. Parse the subject data for the entire classification file
+
+#### Load classification file from google drive
+
+Read in data from google drive
+
+```{r}
+#entire zooniverse classification file
+file_id <- "https://drive.google.com/file/d/1ibs59JwqP9I0CuETUmU5_Ulcn-2EqZqf/view?usp=drive_link"
+#this pulls north-country-wild-classifications.csv
+#need to pass the shared url for the correct csv file here
+
+
+my_file <- drive_get(file_id) #pulls info from google drive for the file
+my_file$name 
+#prints file name - check to make sure you have pulled correct file. But first will ask you to authenticate with google drive.
+
+zoo <- read_csv(I(drive_read_string(my_file)))
+#may be very slow!
+
+```
+
+#### Parse the subject data and clean up the file
+
+```{r}
+zoo_subjects <- flatten_subjects_across_workflows(zoo)
+#keeps annotations and metadata columns 
+#very slow on big files; can consider speeding up later
+
+#if you want to see how long it takes...
+start_time <- sys.Time()
+zoo_subjects <- flatten_subjects_across_workflows(zoo)
+end_time <- sys.Time()
+time_taken <- end_time - start_time
+time_taken
+```
+Now get rid of any columns that are only NA \
+
+```{r}
+zoo_subjects <- zoo_subjects |>
+  select(where(~sum(!is.na(.x)) > 0))
+```
+
+The resulting dataframe is the one for which the `annotations` column now needs to be parsed according to workflow (but perhaps not workflow version).
+
+Let's write it to google drive (too big to store in project):
+Step 1. Save locally
+```{r}
+write_csv(zoo_subjects, here("Data/PostZooniverse/Unflattened/zoo_subjects.csv"))
+```
+
+Step 2. Push to google drive
+
+```{r}
+#id folder and folder name
+zoo_folder <- c("https://drive.google.com/drive/folders/1Csb3Psd2ERLp7DOX0gEqPXK3mdxr4KOQ?usp=drive_link", "Zooniverse-classifications-2026-Aug-20")
+
+drive_upload(
+  here("Data/PostZooniverse/Unflattened/zoo_subjects.csv"),
+  path = as_id(zoo_folder[1]), #path to folder on google drive
+  name = "zoo_subjects_through_Aug_2026.csv")
+
+#can be slow - large file (> 1 MB which is huge for csv)
+
+#use drive_auth() if you need to reauthorize google drive
+#drive_auth()
+```
+
+Step 3 - remove local instance
+
+```{r}
+#because file size will cripple github
+file.remove(here("Data/PostZooniverse/Unflattened/zoo_subjects.csv"))
+```
+
+See `3.Flatten_annotations_by_workflow` for next steps.
+
+

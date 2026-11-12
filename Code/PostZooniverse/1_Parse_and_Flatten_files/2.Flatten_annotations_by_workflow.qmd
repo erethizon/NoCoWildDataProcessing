@@ -1,0 +1,468 @@
+---
+title: "3. Flatten_Zooniverse_by_workflow"
+format: html
+editor: visual
+---
+
+THIS FILE IS FOR PARSING THE JSON DATA FROM THE "SPECIES IDENTIFICATION" WORKFLOWS. USE THE FILE "FLATTEN_IS_THERE_ANIMAL_ZOONIVERSE.RMD" TO PARSE ANIMAL PRESENCE/ABSENCE DATA.
+
+## Overview
+
+Output from classifications on the [Zooniverse](https://zooniverse.com) come encoded in *JSON format*. While most of the columns are straightforward to interpret, two critical columns are not. The first is the **annotation column**. Within it are the species identification and the answers to all of the questions for each event. Likewise, the **subject_data** column contains all of the information from the manifest, such as the forest type, photo batch, camera number, and forest name. It would be good to be able to pull all of this information. We especially need it if we plan to remove e.g. images taken on malfunctioning cameras or otherwise suspect images.
+
+Processing the data requires the following steps: 
+
+1. Parse the `subject_data` column for the entire zooniverse dataset. Do so with code in `1.Flatten_subjects.qmd`.
+
+2. Divide the resulting file into subfiles by workflow id using code below and save in a list. Refer to code in `Load_from_google_make_list_by_workflow.qmd`. Be sure to use the file with flattened subjects in this step.
+
+2.  Parse the annotations column iteratively for each of the different workflows. The annotations column is the column in the zooniverse classification file that includes all of the answers to the questions in the zooniverse workflow, including what the species is and what the animals are doing.
+
+
+3. Write the output to a folder called "Flattened" in the PostZooniverse Output folder.
+
+While this is all well and good, the code below also has some data checking built in, for work being done in November, 2026 working with 4 versions of the workflow Zooniverse 16695, Species identification.
+
+### Turn on packages and bring in the data and r scripts
+
+We need to load desired packages and also source custom functions so that they will run. The tidyjson package may have to be loaded from this [github](https://github.com/sailthru/tidyjson) site. Look [here](https://cran.r-project.org/web/packages/githubinstall/vignettes/githubinstall.html) for some hints as to how to do that.
+
+If you are starting from scratch and want to clear R's environment:
+
+```{r, message = FALSE, echo = FALSE}
+rm(list = ls())
+library(tidyverse)
+library(here)
+```
+
+Otherwise, start here (e.g. if coming from `1.Load_data_from_googledrive`):
+
+```{r, message=FALSE, echo=FALSE}
+library(tidyjson)#may get error; if so, load from github
+library(jsonlite)
+library(magrittr) #allows piping beyond tidyverse
+library(stringr)
+library(tidyr)
+library(rstudioapi)
+
+
+myFunctions<-list.files(here("Code", "Functions"), pattern = "R") 
+#points to files that need to be sourced
+
+invisible(sapply(here("Code", "Functions",myFunctions), source)) #sources all of the functions in the Functions folder. 
+#invisible function sources the functions without printing value ? and visible FALSE in the console for each function that is sourced.
+
+```
+
+### Step 1. Choose the classification file to work with.
+
+Choose from the following options depending on whether you have data loaded in your environment.
+
+#### A. No data loaded - need to load a classification file.
+
+First choose a classification file and subset it to an appropriate workflow Next create a dataframe to hold the metadata Population the dataframe with metadata about the file.
+
+```{r}
+#this code is incomplete
+#write code to use one of my functions to open file
+#write code to subset to a particular workflow
+```
+
+Now that you have a Zooniverse classification file loaded, skip to [Step 2](#step-2), [Method A](#method-a) below.
+
+#### B. Data are loaded from a single workflow and workflow version.
+
+If you already reduced your data to a single classification and workflow, you can skip this step and move down to [Step 2](#step-2), [Method B](#method-b) below.
+
+#### C. Data are in a list of dataframes that you can load or that you have in memory.
+
+If you have multiple data sets, each from a different Zooniverse workflow version, as a result of the `1.Parse_workflows.Rmd` file operation, each is stored as an element in the list `select_list`. Proceed to [Step 2](#step-2), [Method C](#method-c) if you have that list loaded in your environment.
+
+### Step 2. Obtain metadata about the file {#step-2}
+
+Let's gather some information about this data file and create a data frame in which to gather it. Based on what you did using `1.Load_data_from_googledrive.qmd` you may have dataframes in a list. That's what we'll assume here in Method C below.
+
+#### Method A. Assumes you are running this script from the top and didn't already have a dataframe in memory. {#method-a}
+
+```{r}
+#incomplete
+#create empty dataframe to hold metadata
+File_metadata <- data.frame(Parameter = character(),
+                            Value = character()) #intialize empty dataframe
+#populate metadata from file information
+File_metadata[1,] <- c("File name", my_file$name)
+File_metadata[2,] <- c("Workflow ID", unique(df_32_13$workflow_id))
+File_metadata[3,] <-c("Workflow name", unique(df_32_13$workflow_name))
+File_metadata[4,] <-c("Workflow version", unique(df_32_13$workflow_version))
+File_metadata[5,] <-c("Num unflattened rows", length(df_32_13$classification_id))
+File_metadata[6,] <- c("Num unique classifications", length(unique(df_32_13$classification_id)))
+File_metadata[7,] <- c("Num unique subjects", length(unique(df_32_13$subject_ids)))
+
+```
+
+#### Method B. Assumes you have a single dataframe read in via e.g. the `googledrive` package. {#method-b}
+
+```{r}
+#this code is incomplete
+File_metadata <- data.frame(Parameter = character(),
+                            Value = character()) #intialize empty dataframe
+
+File_metadata[1,] <- c("File name", my_file$name)
+File_metadata[2,] <- c("Workflow ID", unique(df_32_13$workflow_id))
+File_metadata[3,] <-c("Workflow name", unique(df_32_13$workflow_name))
+File_metadata[4,] <-c("Workflow version", unique(df_32_13$workflow_version))
+File_metadata[5,] <-c("Num unflattened rows", length(df_32_13$classification_id))
+File_metadata[6,] <- c("Num unique classifications", length(unique(df_32_13$classification_id)))
+File_metadata[7,] <- c("Num unique subjects", length(unique(df_32_13$subject_ids)))
+```
+
+#### Method C assumes you have a list with separate data frames as elements. {#method-c}
+
+We'd like to collect some information about each of the dataframes we're going to be evaluating as metadata. Let's store the metadata as a dataframe with one row of information per dataframe. We'll use a loop so that we can iterate over the elements in `select_list` to extract metadata.We created `select_list` with the code in `1.Load_data_from_googledrive.qmd`.
+
+```{r}
+#create empty dataframe to store results
+File_metadata<- data.frame(list_element_name = character(),
+                        wkflow_id = numeric(),
+                        wkflow_name = character(),
+                        wkflow_version = numeric(),
+                        num_unflattened_rows = numeric(),
+                        num_unique_classifications = numeric(),
+                        num_unique_subjects = numeric())
+
+for(i in 1:length(select_list)){
+  #extract first element from select_list as temp_df
+  temp_df <- map_dfr(select_list[i], rbind)
+  
+  #create empty df to hold metadata
+  temp_meta <- data.frame(list_element_name = character(length = i),
+                        wkflow_id = numeric(length = i),
+                        wkflow_name = character(length = i),
+                        wkflow_version = numeric(length = i),
+                        num_unflattened_rows = numeric(length = i),
+                        num_unique_classifications = numeric(length = i),
+                        num_unique_subjects = numeric(length = i))
+  
+  temp_meta[i, 1] <- names(select_list[i])
+  temp_meta[i, 2] <-unique(temp_df$workflow_id)
+  temp_meta[i, 3] <-unique(temp_df$workflow_name)
+  temp_meta[i, 4] <-unique(temp_df$workflow_version)
+  temp_meta[i, 5] <-length(temp_df$classification_id)
+  temp_meta[i, 6] <- length(unique(temp_df$classification_id))
+  temp_meta[i, 7] <- length(unique(temp_df$subject_ids))
+  
+
+#now assign to File_metadata DF
+File_metadata <- File_metadata |> add_row(temp_meta[i,])
+}
+
+```
+
+#### Save the metadata
+
+Consider writing your metadata file now or do it when you write the full, flattened file. See [Save your result](#save) for details.
+
+### Step 3. Parse the JSON data
+
+Now that we have the data loaded, we will first flatten the Annotations column by calling the `flatten_annotations` function. Then we extract subject information with the `flatten_subjects_wflow_32_13` function. We join and clean up the data and can then export it for later use.
+
+The first section of code ("Method A") subsets each dataframe one at a time so that I can look for wonkiness before merging to one large data frame.
+
+The code under "Method B" uses a loop to step through each dataframe in `select_list` and extract subject and annotation data from each and then adds data from each dataframe to a single, final dataframe that includes data from more than 1 workflow version.
+
+#### Method A. Single dataframe and data checks
+
+I'm going to work through each data frame so that I can try to understand better why some rows lack camera information after the join. It may have to do with slightly different workflow versions not parsing the same way.
+
+Let's get a list of elements present in our list
+
+```{r}
+dataframes <- names(select_list)
+```
+
+Now we can easily grab one of the 4 dataframes. Let's start with workflow version 11.8.
+
+##### Collect summary information here
+
+As I work through these 4 dataframes I'm going to collect some information about them here:
+
+Let's create a dataframe to store information:
+
+```{r}
+workflow_summary_details <- data.frame(
+  wkflow_version = numeric(length(dataframes)),
+  num_rows = numeric(length(dataframes)),
+  num_rows_flat_file = numeric(length(dataframes)), 
+  num_subjects_not_in_flat = numeric(length(dataframes)),
+  num_unique_subjects = numeric(length(dataframes))
+)
+```
+
+##### Workflow version 11.8
+
+###### A. Parse the annotation data (Species ID and answers to questions)
+
+Work with first dataframe
+
+```{r}
+df <- map_dfr(select_list[1], rbind) 
+#use if extracting dataframe from list
+#df <- #point to your dataframe
+  
+flat_file<-flatten_annotations(df) 
+#this is slow; could we write faster code?  A problem for another day.
+```
+
+Does the flattened file have fewer rows than the initial dataframe? If so, check.
+
+Let's see which `subject_ids` in the main data frame are missing from the flattened file:
+
+```{r}
+not_in_flat <- setdiff(df$classification_id, flat_file$classification_id)
+```
+
+Now let's take a look at those rows of data
+
+```{r}
+df[not_in_flat,] |> 
+  View()
+```
+
+You can see that the difference are rows of data for which a classification was not completed, entirely composed of "NAs".
+
+So, flat_file has all of the data for which a classification was actually made. Are there any rows or columns of data in flat_file that are entirely NA?
+
+```{r}
+#check rows
+flat_file |> 
+  filter(if_all(everything(), is.na))|>
+  View()
+
+#check columns
+flat_file |>
+  select(where(~all(is.na(.)))) |>
+  View()
+```
+
+###### B. Parse the subjects column
+
+Now we can parse the data. Which function you use to flatten the subjects data depends on what version of the workflow you are using. Here's a guide.
+
+The general `flatten_subjects` function was designed to parse a variety of different workflow versions, but results in many columns that need to then be matched. Let's try to refine a bit.
+
+```{r}
+#view json data from random sample of rows of dataframe
+View_subject_data(sample_n(df, 10), 10)
+```
+
+Let's get 100 random rows of data from df to play with
+
+```{r}
+rand_subset_df <- df |> sample_n(100)
+```
+
+Let's try parsing subjects with general function from these rows:
+
+```{r}
+rand_subjects <- flatten_subjects(rand_subset_df)
+```
+
+All applies for workflow 16695 - Species Identification \|Workflow version\|Function to use\| \|----------------\|---------------\| \|11.8 \|`flatten_subjects_wkflow11.8`\|
+
+If you are working with a recent version of the species identification workflow, use the `flatten_subjects_wflow_32_13.R` function.
+
+```{r}
+subjects<-flatten_subjects_wkflow11.8(df)
+```
+
+Now let's look at the rows of subjects for which no classification was made:
+
+```{r}
+subjects_not_classified <- subjects[not_in_flat,]
+```
+
+There are no subject IDS - we don't have any information in those rows, so we don't need them. Remove them so that subjects and flat_file are the same length.
+
+If you are using data from an older workflow, there may be some wonky issues when you flatten subjects -- use the basic `flatten_subjects` function if that is the case.
+
+I've updated flatten_subjects so that it reports a lot of columns, parsing all of the subject columns regardless of the format of the manifest that was uploaded to the zooniverse. So now we can sort by project and isolate data from different manifests that use the same workflow.
+
+Notice that if flat_file may have fewer rows than subjects it is because for some subset of the data (equal in number to the difference in length b/w the subjects data and the flat_file data) no identification was made, so the annotations column has no information.
+
+##### C. Merge the annotations and subjects data
+
+Now that we have flattened both the annotations and subject_data columns, we would like to generate one large data frame with all of the data to export and analyze (using different R scripts!). To do so, we need to join the two data frames. Joining will **only work** if you have a column, named identically in both data frames, on which the join will work.
+
+The join itself is pretty easy:
+
+```{r}
+Flattened_11_8 <-left_join(flat_file, subjects, by='classification_id')
+
+# Now move subject_ids column to left most position
+
+Flattened_11_8<-Flattened_11_8 %>% relocate(subject_ids)
+
+#and see how many don't have image information
+
+Flattened_11_8 |> 
+  filter(is.na(Img1))|> 
+  View()
+
+#find classifications for which no image info is present
+NA_cam_info <- Flattened_11_8 |>
+  filter(is.na(Img1)) |>
+  select(classification_id)
+#now look at those rows in df and look at some json data to understand why
+
+#look at subjects
+subjects |> 
+  filter(classification_id %in% NA_cam_info) |>
+  View()
+
+#look at flat_file
+flat_file |> 
+  filter(classification_id %in% NA_cam_info) |>
+  View()
+
+
+#and move the Camera_SD card combination toward the left as well.
+
+#next may not work depending on workflow version.
+Flattened <- Flattened |>
+  relocate(CamSD, .after = classification_id)
+```
+
+##### D. Fix dates and delete empty columns
+
+Fix Dates One thing we should do for determining consensus picks is to correct the dates associated with the date-time of the first image in each subject set.
+
+```{r}
+Flattened <- Flattened |>
+  mutate(
+    newDTO_img1 = parse_date_time(DTO_Img1, c("mdy_HM", "ymd_HMS", "ymd")))
+    
+Flattened <- Flattened |>
+  relocate(newDTO_img1, .after = DTO_Img1)
+```
+
+Delete empty columns Next, get rid of any empty columns in the dataset:
+
+```{r}
+empty_cols <- sapply(Flattened, function(x)all(is.na(x))) #identify the columns that only contain NA
+dump <- which(empty_cols == TRUE)
+
+Flattened <- Flattened |>
+  select(!dump)
+```
+
+#### Method B - use a loop to process more than 1 dataframe
+
+Here's a loop that will flatten annotations and subjects from several classification files and output a single dataframe with the combined data.
+
+```{r}
+#create empty dataframe for results
+classifications <- data.frame()
+
+#build loop
+for(i in 1:length(select_list)){
+  #extract first element from select_list as temp_df
+  temp_df <- map_dfr(select_list[i], rbind)
+  temp_flat_file <- flatten_annotations(temp_df)
+  temp_subjects <- flatten_subjects_wflow_32_13(temp_df)
+  temp_Flattened<-left_join(temp_flat_file, temp_subjects, by='classification_id')
+
+# Now move subject_ids column to left most position
+  temp_Flattened <- temp_Flattened %>% relocate(subject_ids)
+
+#and move the Camera_SD card combination toward the left as well.
+  temp_Flattened <- temp_Flattened |>
+  relocate(CamSD, .after = classification_id)
+  
+#fix dates
+  temp_Flattened <- temp_Flattened |>
+    mutate(
+    newDTO_img1 = parse_date_time(DTO_Img1, c("mdy_HM", "ymd_HMS", "ymd")))
+    
+  temp_Flattened <- temp_Flattened |> 
+    relocate(newDTO_img1, .after = DTO_Img1)
+
+#save outside of loop
+  classifications <- rbind(classifications, temp_Flattened)
+
+}
+
+#now get rid of NA columns
+empty_cols <- sapply(classifications, function(x)all(is.na(x))) #identify the columns that only contain NA
+dump <- which(empty_cols == TRUE)
+
+classifications <- classifications |>
+  select(!dump)
+
+```
+
+Now write this file!
+
+Skip down to the [section on saving](#save) for details on where and how to export your file.
+
+### Save your result {#save}
+
+Now Save our result! This will go in the flattened folder within the PostZooniverse outputs.
+
+We will save it as a .csv file and we will also save it to a list and then save the list, and we will save it as a .csv file.
+
+#### If you don't have a dataframe in memory
+
+If you are running this scropt from the top and didn't already have a dataframe in memory:
+
+```{r}
+output<-here("Output", "PostZooniverse", "Flattened", "Species_ID")
+
+myFile<-str_remove(filename, ".csv") #drop the .csv temporarily
+
+write.csv(Flattened,  paste0(output,"/","noco_wild_to_aug_20_2026","_flat_", Sys.Date(), ".csv"))
+
+write.csv(classifications, paste0(output, "/", "to_aug_2026_combined_worflow_versions_flat.csv"))
+#and write the metadata
+write.csv(File_metadata, paste0(output,"/","noco_wild_to_aug_20_2026_fMeta_", Sys.Date(), ".csv"))
+
+```
+
+#### If you want to save the file to google drive
+
+Write the file locally and then push to a google drive.
+
+##### Save the .csv file
+
+```{r}
+write_csv(Flattened, here("Output/PostZooniverse/Flattened/Species_ID/Flattened-wf16995_32_13-11-Mar-2026.csv"))
+```
+
+##### Push to google drive
+
+Let's write this dataframe to google drive: Step 1 - write locally
+
+```{r}
+write_csv(Flattened, here("Output/PostZooniverse/Flattened/flattened_6Sept2026.csv"))
+```
+
+Step 2 - push to google drive
+
+```{r}
+drive_upload(
+  here("Output/PostZooniverse/Flattened/flattened_6Sept2026.csv"),
+  path = as_id("https://drive.google.com/drive/folders/1Csb3Psd2ERLp7DOX0gEqPXK3mdxr4KOQ?usp=sharing"), #path to folder on google drive
+  name = "noco_wild_to_aug_20_2026_flat.csv")
+
+#use drive_auth() if you need to reauthorize google drive
+#drive_auth()
+```
+
+Step 3 - remove local instance
+
+```{r}
+file.remove(here("Output/PostZooniverse/Flattened/flattened_23April2026.csv"))
+```
+
+## Next steps
+
+Now that you have saved a flattened classification file, you can run through code in `Check_classifications.Rmd` or move right to `3_Consensus_picks`. Try the new code found in that folder called `Iterative_consensus_picks.Qmd`

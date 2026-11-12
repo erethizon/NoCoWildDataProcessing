@@ -8,12 +8,14 @@ The end product of the flattening process is a new dataset that includes all of 
 ```{r, results='hide'}
 rm(list = ls())
 library(tidyverse)
+library(rstudioapi)
 library(here)
 ```
 Pull in data
 Use choose file dialog
 ```{r}
 #choose flattened file; requires active t:drive connection
+
 rstudioapi::showDialog(
   title = "Let's give R some file information",
   message = "Select the file containing the flattened classification data you wish to process")
@@ -39,8 +41,8 @@ How many observations per subject_id?
 Classified %>% 
   group_by(subject_ids) %>% 
   summarise(
-  NumClassification = length(choice)
-) |> arrange(desc(NumClassification)) |>
+    NumClassification = length(choice)) |> 
+  arrange(desc(NumClassification)) |>
   View()
 ```
 What is the range in number of classifications per subject id?
@@ -48,9 +50,8 @@ What is the range in number of classifications per subject id?
 
 Classified %>% 
   group_by(subject_ids) %>% 
-  summarise(
-  NumClassification = length(choice)
-) |> summary(NumClassification) |>
+  summarise(NumClassification = length(choice)) |> 
+  summary(NumClassification) |>
   View()
 
 ```
@@ -58,9 +59,8 @@ Plot a histogram of number of classifications
 ```{r}
 PerSubID <- Classified %>% 
   group_by(subject_ids) %>% 
-  summarise(
-  NumClassification = length(choice)
-) |> arrange(desc(NumClassification)) 
+  summarise(NumClassification = length(choice)) |> 
+  arrange(desc(NumClassification)) 
 
 ggplot(PerSubID, aes(NumClassification))+
   geom_histogram()
