@@ -536,6 +536,9 @@ Step 3 - remove local instance
 #because file size will cripple github
 file.remove(here("Data/PostZooniverse/Unflattened/zoo_subjects_annotation.csv"))
 ```
+This is the file you should use in the next steps of dealing with this large file.
+
+
 
 
 ```{r}
