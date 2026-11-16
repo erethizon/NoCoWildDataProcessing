@@ -8,38 +8,84 @@ The end product of the flattening process is a new dataset that includes all of 
 ```{r, results='hide'}
 rm(list = ls())
 library(tidyverse)
-library(rstudioapi)
 library(here)
+library(magrittr)#allows piping beyond tidyverse
+library(googledrive)
+
+myFunctions <-list.files(here("Code", "Functions"), pattern = "R")
+
+#points to files that need to be sourced
+
+invisible(sapply(here("Code", "Functions", myFunctions), source)) #sources all of the functions in the Functions folder.
+
+#invisible function sources the functions without printing value ? and visible FALSE in the console for each function that is sourced.
+
 ```
-Pull in data
-Use choose file dialog
+
+## Pull in data from google drive
+
+### Step 1. Parse the subject data for the entire classification file
+
+#### Load classification file from google drive
+
+Read in data from google drive
+
 ```{r}
-#choose flattened file; requires active t:drive connection
+#entire zooniverse classification file
+file_id <- "https://drive.google.com/file/d/1Tm7WiXdknLmmWbPmIv_HRFQYSTFMS30K/view?usp=sharing"
+#this pulls north-country-wild-classifications.csv
+#need to pass the shared url for the correct csv file here
 
-rstudioapi::showDialog(
-  title = "Let's give R some file information",
-  message = "Select the file containing the flattened classification data you wish to process")
 
-#path to exif file folder on t:drive
-path_to_flat_file<-"/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/classification_files/"
+my_file <- drive_get(file_id) #pulls info from google drive for the file
+my_file$name 
+#prints file name - check to make sure you have pulled correct file. But first will ask you to authenticate with google drive.
 
-flat_file_path<-rstudioapi::selectFile(
-  path = "/Volumes/classes/Bart_s04/Research_group/NoCoWild/Data/classification_files/",
-  filter = "CSV files (*.csv)",
-  label= "Select desired flat file"
-)
+Classified <- read_csv(I(drive_read_string(my_file)))
+#may be very slow!
 
-Classified<-read.csv(flat_file_path)
-filename<-basename(flat_file_path)
 ```
+Let's clean up and rearrange the data
+
+```{r}
+cols_to_drop <- c("subject_ids.y", "user_name.y", "workflow_name.y", "workflow_version.y", "created_at", "metadata", "annotations", "subject_data", "subject." )
+
+Classified <- Classified |>
+  select(-all_of(cols_to_drop))
+#now rename
+ Classified <- Classified |>
+   rename(
+     subject_ids = subject_ids.x,
+     user_name = user_name.x,
+     workflow_name = workflow_name.x,
+     workflow_version = workflow_version.x
+   )
+
+```
+
+And rearrange some columns
+
+```{r}
+Classified <- Classified |>
+  relocate(c(user_name, workflow_name, workflow_version, task_index, task, task_label, array.index), .after = cam_sd) |>
+  relocate(starts_with("subject"), .after = array.index) |>
+  relocate(
+    starts_with("answers"), .after = cam_sd
+  ) |>
+  relocate(
+    subject_ids, .before = classification_id
+  )
+```
+
+
 How many unique subject_ids?
 ```{r}
 Num_subjects<-length(unique(Classified$subject_ids))
 ```
 How many observations per subject_id?
 ```{r}
-Classified %>% 
-  group_by(subject_ids) %>% 
+Classified |> 
+  group_by(subject_ids) |>
   summarise(
     NumClassification = length(choice)) |> 
   arrange(desc(NumClassification)) |>
@@ -48,8 +94,8 @@ Classified %>%
 What is the range in number of classifications per subject id?
 ```{r}
 
-Classified %>% 
-  group_by(subject_ids) %>% 
+Classified |>
+  group_by(subject_ids) |>
   summarise(NumClassification = length(choice)) |> 
   summary(NumClassification) |>
   View()
@@ -65,19 +111,16 @@ PerSubID <- Classified %>%
 ggplot(PerSubID, aes(NumClassification))+
   geom_histogram()
 ```
-Now let's look at those subjects with 1, 2, or more than 6 classfications
 
-```{r}
-Look<-which(PerSubID$NumClassification < 3|PerSubID$NumClassification > 6)
-
-PickTheseIDs<-PerSubID[Look,]
-Check<-filter(Classified, subject_ids %in% PickTheseIDs$subject_ids)
-```
 
 Now arrange by subject id
 ```{r}
 Classified<-arrange(Classified, by = subject_ids)
 ```
+
+Now use this file to begin checking for consensus picks.
+
+Keep in environment and open `Iterative_consensus_picks.qmd`
 
 
 

@@ -8,9 +8,9 @@ editor: visual
 
 Our current method for determining the consensus picks among our zooniverse classfications applies code to the entire dataset, which can make error checking rather problematic.
 
-Here I am writing new code (April 2026) that will work through the data one deployment at a time to assign the consensus choice for each subject_id.
+Here I am writing new code (April, Nov 2026) that will work through the data one deployment at a time to assign the consensus choice for each subject_id.
 
-This code assumes that you have a Flattened file in your environment. If not, use the code in `1_Parse_and_Flatten_files` and perhaps in `2_Check_classifications` before coming here.
+This code assumes that you have a Flattened file in your environment with both annotations and subject_data parsed from the downloaded zooniverse classification file.
 
 ## Overview
 
@@ -18,38 +18,43 @@ Once we have flattened all of our data, we need to examine it to determine the c
 
 We need to know the following:
 
-For how many subject ids were all of the choices the same (i.e. all classifiers identified the same species)?
+- For how many subject ids were all of the choices the same (i.e. all classifiers identified the same species)?
 
-What was the chosen species for each of these subject ids?
+- What was the chosen species for each of these subject ids?
 
-For which subject_ids were there discrepancies in what the species_id was?
+- For which subject_ids were there discrepancies in what the species_id was?
 
-How many of these subject_ids were there?
+- How many of these subject_ids were there?
 
-For which subject_ids were there more than one species present in the set of photos?
+- For which subject_ids were there more than one species present in the set of photos?
 
-We'll see below that these are the cases in which num_votes \> num_class
+We'll see below that these are the cases in which num_votes is greater than num_class
 
-Are there discrepancies in what species are indicated as present? How will we reconcile them?
+- Are there discrepancies in what species are indicated as present? How will we reconcile them?
 
-Can we keep data on what percent of IDs were problematic?
+- Can we keep data on what percent of IDs were problematic?
 
 ### Set up
+
 ```{r}
-rm(list = ls()) #uncomment if starting fresh
+#rm(list = ls()) #uncomment if starting fresh
 library(tidyverse)
-library(googledrive)
+library(googledrive) # to connect to, read and write csv files stored on google
+library(googlesheets4) #to read a googlesheet in as .csv
 library(pander)
 library(here)
 ```
 
 ### Read in flattened file
+
 If you are not continuing from an earlier script with data already in your environment, you will need to read in a `flattened` file:
 
-Step 1 - Set file path
+#### Option A - CSV file stored on google
+
+Step 1. Link to file stored on google drive
 
 ```{r}
-file_id <- "https://drive.google.com/file/d/1dOQZ40AfQXA-fEdEFFX5waiS7HWTRxVr/view?usp=drive_link"
+file_id <- "https://drive.google.com/file/d/1Tm7WiXdknLmmWbPmIv_HRFQYSTFMS30K/view?usp=drive_link"
 ```
 
 Step 2 - get file info from googledrive
@@ -59,10 +64,16 @@ flat_file <- drive_get(file_id) #pulls info from google drive for the file
 flat_file$name #prints file name - check to make sure you have pulled correct file
 ```
 
-Step 2 - read file
+Step 3 - read file
 
 ```{r}
 Flattened <- read_csv(drive_read_string(flat_file))
+```
+
+#### Option B - Read directly from a google sheet (not saved as .csv)
+
+```{r}
+Flattened <- read_sheet("https://docs.google.com/spreadsheets/d/1BOhUKaEgA_SBqcY5-1pQn0K4DWbebujMcA5R0G-3m6k/edit?usp=sharing", col_names = TRUE)
 ```
 
 ## Prep the file
@@ -73,18 +84,27 @@ Check to see that there is a column called `newDTO_img1` in the file
 "newDTO_img1" %in% names(Flattened)
 ```
 
-If there is not, use the code below to fix the dates. 
+If there is not, use the code below to fix the dates.
 
-### Fix Dates 
+### Fix Dates
+
 One thing we should do for determining consensus picks is to correct the dates associated with the date-time of the first image in each subject set.
 
 ```{r}
+# Flattened <- Flattened |>
+#   mutate(
+#     newDTO_img1 = parse_date_time(DTO_Img1, c("mdy_HM", "ymd_HMS", "ymd")))
+#     
+# Flattened <- Flattened |>
+#   relocate(newDTO_img1, .after = DTO_Img1)
+
+#Nov 2026 file has column called subject.DateTimeOriginal_Img1 for which 19% of dataset is NA
+
 Flattened <- Flattened |>
   mutate(
-    newDTO_img1 = parse_date_time(DTO_Img1, c("mdy_HM", "ymd_HMS", "ymd")))
-    
-Flattened <- Flattened |>
-  relocate(newDTO_img1, .after = DTO_Img1)
+    newDTO_img1 = parse_date_time(subject.DateTimeOriginal_Img1, c("mdy_HM", "ymd_HMS", "ymd"))
+  ) |>
+  relocate(newDTO_img1, .before = subject.DateTimeOriginal_Img1)
 ```
 
 ### Delete empty columns
@@ -114,21 +134,114 @@ Flattened <- Flattened |>
 
 ```{r}
 Flattened <- Flattened |>
-  mutate(choice1 = choice) |>
-  relocate(choice1, .after = choice)
+  mutate(modified_choice = choice) |>
+  relocate(modified_choice, .after = choice)
 
 Flattened <- Flattened |>
   mutate(
-    choice1 = replace_when(choice1, choice == "COTTONTAILRABBIT" | choice == "SNOWSHOEHARE" ~ "RABBIT OR HARE")
+    modified_choice = replace_when(modified_choice, choice == "COTTONTAILRABBIT" | choice == "SNOWSHOEHARE" ~ "RABBIT OR HARE")
   )
+```
+
+Get rid of beta test classifications
+
+Let's get rid of the data from the zooniverse beta test
+
+```{r}
+beta <- Flattened |>
+  filter(deploy_round == "beta test")
+
+#remove them from data
+to_remove <- which(Flattened$deploy_round == "beta test")
+
+Flattened <- Flattened[-to_remove,]
+
+unique(Flattened$deploy_round)
+
+```
+
+Get rid of duplicate columns. When we flattened the file, we ended up with repeat user_name, subject_ids, workflow_name and workflow_version columns. Fix
+
+```{r}
+#drop .y versions
+dump <- c("subject_ids.y", "user_name.y", "workflow_name.y", "workflow_version.y")
+Flattened <- Flattened |>
+  select(-all_of(dump))
+#now rename existing
+
+Flattened <- Flattened |>
+  rename(
+    subject_ids = subject_ids.x,
+    user_name = user_name.x,
+    workflow_name = workflow_name.x,
+    workflow_version = workflow_version.x
+  )
+```
+
+### Clean up missing camera and sd card numbers in Flattened
+
+Let's try to clean up the cam_sd combo
+
+```{r}
+#find those rows in which some part of cam_sd includes NA
+
+Flattened |>
+  filter(is.na(cam_number) | is.na(sd_number)) |>
+ nrow() 
+
+#now get their rows
+cam_sd_na <- which(is.na(Flattened$cam_number) | is.na(Flattened$sd_number))
+
+#now grab them 
+fix_cam_sd <- Flattened |>
+  filter(is.na(cam_number) | is.na(sd_number))
+
+#now extract cam number, sd number
+
+fix_cam_sd <- fix_cam_sd |>
+  mutate(cam_number = as.character(as.integer(str_sub(image_1, 1,2))),
+         sd_number = as.character(as.integer(str_sub(image_1, 4,5))),
+         #create well-formatted camera number
+         formatted_cam_number = 
+           case_when(
+             str_starts(cam_number, "C") ~ cam_number,
+             as.numeric(cam_number) < 10 ~ paste0("C00", cam_number),
+             as.numeric(cam_number) < 100 ~ paste0("C0", cam_number),
+             TRUE ~ paste0("C", cam_number)),
+         formatted_sd_number = 
+           case_when(
+             str_starts(sd_number, "SD") ~ sd_number,
+             as.numeric(sd_number) < 10 ~ paste0 ("SD00", sd_number),
+             as.numeric(sd_number) < 100 ~paste0("SD0", sd_number),
+             TRUE ~ paste0("SD", sd_number)),
+         cam_sd = paste0(formatted_cam_number, "_", formatted_sd_number)
+         )
+
+#now replace into Flattened
+
+Flattened[cam_sd_na,] <- fix_cam_sd
+
+#now check for nas in cam, sd card
+Flattened |>
+  filter(is.na(cam_number) | is.na(sd_number)) |>
+ nrow() 
+
 ```
 
 ## Join to deployment data
 
-Now read in the deployment data from google drive and join it to the classification data Step 1. Set file path
+Now read in the deployment data from google drive and join it to the classification data
+
+### Get deployment data
+
+#### Option 1. Read csv stored on google drive
+
+Step 1. Set file path
 
 ```{r}
-deployment_file <- "https://drive.google.com/file/d/1vEAI-vi17AIOZqU8OGmMTQF4cLSla42q/view?usp=sharing"
+deployment_file <- "https://docs.google.com/spreadsheets/d/1BOhUKaEgA_SBqcY5-1pQn0K4DWbebujMcA5R0G-3m6k/edit?usp=sharing"
+
+#Main deployment spreadsheet
 
 ```
 
@@ -142,35 +255,89 @@ deploy_file$name
 Step 3. Read file.
 
 ```{r}
-deployments <- read_csv(drive_read_string(deploy_file))
+deployments <- read_csv(I(drive_read_string(deploy_file)))
 ```
 
-### Assign date fields
+#### Option 2. Read from google sheet (no csv)
+
+```{r}
+deployments <- read_sheet("https://docs.google.com/spreadsheets/d/1BOhUKaEgA_SBqcY5-1pQn0K4DWbebujMcA5R0G-3m6k/edit?usp=sharing")
+```
+
+NOTE: Dates should come in as POSIXct and no columns should come in as lists. If they do, need to go check structure of google sheet or fix after import.
+
+### Clean up deployments file
+
+May need some of these code chunks and not others depending on how your deployments file is structured on import.
+
+Fix file error in column name
+
+```{r}
+#may not need this code; depends on format of deployment sheet you brought in
+deployments <- deployments |>
+  rename(deployment_date_standardized = deployment_data_standardized)
+```
+
+#### Get rid of unnecessary columns
+
+```{r}
+cols_to_drop <- c("project_lead", "other_students","camera_trappers", "project_trap_code", "camera_brand", "camera_model", "round", "phase", "HEXID", "northing", "easting", "AM_present", "Num_AM_present", "AM_deployment_num", "gps_source", "gps_accuracy_m", "bushnell_bat_start_bars", "bushnell_bat_end_bars", "battery_percent_start", "battery_percent_end", "lithium_or_recharge", "tem_logger_num", "snowstake_distance_m", "cam_orientation_degrees", "cam_orientation_string", "tree_species")
+
+deployments <- deployments |>
+  select(-all_of(cols_to_drop))
+
+summary(deployments)
+```
+
+#### Get rid of video deployments
+
+Since we are matching zooniverse data, which is only images and no video, with our deployments, we can omit from deployments those instances in which media_type is video. For now, keep "images & video"
+
+```{r}
+unique(deployments$media_type)
+
+deployments <- deployments |>
+  filter(media_type != "video")
+```
+
+#### Assign date fields
 
 ```{r}
 deployments <- deployments |>
   mutate(
-    deployment_data_standardized = dmy(deployment_data_standardized),
+    deployment_date_standardized = dmy(deployment_date_standardized),
     collection_date_standardized = dmy(collection_date_standardized)
   )
+
+summary(deployments$deployment_date_standardized)
+summary(deployments$collection_date_standardized)
 ```
 
-There are some deployments for which no one recorded the collection date, so we don't have it.
+There are some deployments for which no one recorded the collection date, so we don't have it. Let's get a list so we can re-check data sheets or use date of last image to assess.
+
+```{r}
+deployments |>
+  filter(is.na(collection_date_standardized)) |>
+  select(deployment_number) |>
+  pander()
+```
 
 ### Compare columns between Flattened and deployments
 
-### Check the primary keys
+#### Check the primary keys
 
-We should verify that the primary keys in each table (CamSD in Flattened and Cam_SD in deployments) uniquely identify each observation. We can use `count()` and look for entries where `n > 1`
+We should verify that the primary keys in each table (cam_sd in Flattened and Cam_SD in deployments) uniquely identify each observation. We can use `count()` and look for entries where `n > 1`
 
 ```{r}
 Flattened |>
-  count(CamSD) |>
+  count(cam_sd) |>
   filter(n >1) |>
   pander()
 ```
 
-In `Flattened`, there are 128 rows in which CamSD repeats, which makes sense, because we have multiple `subject_ids` from each deployment.
+In `Flattened`, there are many rows in which cam_sd repeats, which makes sense, because we have multiple `subject_ids` from each deployment.
+
+What about in deployments?
 
 ```{r}
 deployments |>
@@ -179,7 +346,7 @@ deployments |>
   pander()
 ```
 
-There are 19 rows in which Cam_SD is repeated. This is a problem, because we reused Cam_SD card combinations. So we don't know which Cam_SD of those 19 rows is the proper match in `Flattened`. Let's take a look at those
+There are 18 rows in which Cam_SD is repeated. This is a problem, because we reused Cam_SD card combinations. So we don't know which Cam_SD of those 19 rows is the proper match in `Flattened`. Let's take a look at those
 
 ```{r}
 check <- deployments |>
@@ -192,42 +359,73 @@ Now filter just those deployments
 ```{r}
 deployments |> 
   filter(Cam_SD %in% check$Cam_SD) |>
-  arrange(Cam_SD, deployment_data_standardized) |>
+  arrange(Cam_SD, deployment_date) |>
   View()
 ```
 
-We could perhaps have a `surrogate` primary key that combines Cam_SD with deployment_data_standardized.
+We could perhaps have a `surrogate` primary key that combines Cam_SD with deployment number.
 
 ```{r}
 deployments |>
-  count(Cam_SD, deployment_data_standardized) |>
+  count(Cam_SD, deployment_number) |>
   filter(n > 1) |>
   pander()
 ```
 
-There are no cases with repeats, so that combination gives a unique id.
+Or a surrogate primary key that uses deployment_date
+
+```{r}
+deployments |>
+  count(Cam_SD, deployment_date) |>
+  filter(n > 1) |>
+  pander()
+```
+
+There are no cases with repeats for either combination, so each combination gives a unique id.
 
 ### Check for many-to-many relationships
 
 To do a join, we'd like to know what camera_sd combinations are common between the 2 datasets
 
 ```{r}
-common_cams <- intersect(Flattened$CamSD, deployments$Cam_SD)
+common_cams <- intersect(Flattened$cam_sd, deployments$Cam_SD)
 ```
 
 Now look to see if there are camera_sd combinations that are not shared between the 2 datasets
 
 ```{r}
-Flat_v_deploy <- setdiff(Flattened$CamSD, deployments$Cam_SD)
+Flat_v_deploy <- setdiff(Flattened$cam_sd, deployments$Cam_SD)
 ```
 
-There are no cameras in Flattened that are not in deployments. Are there camerqs in deployments that are not in Flattened?
+There are no cameras in Flattened that are not in deployments;
+
+Are there cameras in deployments that are not in Flattened?
 
 ```{r}
-deploy_v_Flat <- setdiff(deployments$Cam_SD, Flattened$CamSD)
+deploy_v_Flat <- setdiff(deployments$Cam_SD, Flattened$cam_sd)
 ```
 
-There are 308 cameras in deployments that do not occur in Flattened. Let's remove them.
+There are 111 cameras in deployments that do not occur in Flattened.
+
+Let's look at them.
+
+Let's remove them.
+
+```{r}
+deployments |>
+  filter(Cam_SD %in% deploy_v_Flat) |>
+  View()
+```
+
+According to the deployments sheet, these deployments have not been uploaded to the zooniverse. That would be good to check. Let's write that list of deployments.
+
+```{r}
+write_csv(filter(deployments, Cam_SD %in% deploy_v_Flat), "/Users/ebar/Desktop/not_on_zooniverse.csv")
+```
+That also seems like a LOT of deployments, so I wonder if some of them are present in the "Is there an animal" workflow but that didn't get to this workflow?
+
+
+#STOPPED HERE
 
 ```{r}
 #create function to negate %in%
@@ -317,11 +515,13 @@ test_join <- left_join(
     )
 )
 ```
+
 Are there any subject_ids in test_join for which deployment_id is na?
 
 ```{r}
   length(which(is.na(test_join$deployment_number)))
 ```
+
 Ok - there are 1650 rows for which the join didn't work. Let's take a look at them
 
 ```{r}
@@ -329,6 +529,7 @@ test_join |>
   filter(is.na(deployment_number)) |>
   View()
 ```
+
 now figure out what cameras they are from
 
 ```{r}
@@ -338,15 +539,14 @@ join_prob <- test_join |>
 prob_cams <- unique(join_prob$CamSD)
 prob_cams
 ```
+
 Now look at those cams in deployments
+
 ```{r}
 deployments_small|>
   filter(Cam_SD %in% prob_cams) |>
   View()
 ```
-
-
-
 
 I think it worked! Now get rid of all empty columns!
 
